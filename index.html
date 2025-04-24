@@ -1,13 +1,214 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Termos de Adesão – AMPARE</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
+  <!-- pdf‑lib -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <!-- FileSaver.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body class="bg-gray-100 p-4">
+  <div id="app" class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">AMPARE – Gerador de Contratos</h1>
+
+    <!-- ============================  Etapa 1 – seleção & link  ============================ -->
+    <section id="linkSection" class="space-y-4">
+      <div>
+        <p class="font-semibold mb-1">1. Escolha quais contratos deseja enviar ao associado:</p>
+        <div class="grid sm:grid-cols-3 gap-3">
+          <label class="flex items-center bg-white p-3 rounded shadow cursor-pointer">
+            <input type="checkbox" class="contractChk" value="saude" />
+            <span class="ml-2">Seguro‑Saúde</span>
+          </label>
+          <label class="flex items-center bg-white p-3 rounded shadow cursor-pointer">
+            <input type="checkbox" class="contractChk" value="qualidonto" />
+            <span class="ml-2">Plano Odontológico</span>
+          </label>
+          <label class="flex items-center bg-white p-3 rounded shadow cursor-pointer">
+            <input type="checkbox" class="contractChk" value="vitalmed" />
+            <span class="ml-2">Assistência Familiar (Vitalmed)</span>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <p class="font-semibold mb-1">2. Gere o link de preenchimento:</p>
+        <div class="flex">
+          <input id="formLink" class="flex-1 border rounded-l px-2 py-1" readonly placeholder="Selecione os contratos acima" />
+          <button id="copyBtn" class="bg-blue-600 text-white px-4 rounded-r disabled:opacity-40">Gerar & Copiar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================  Etapa 2 – preenchimento  ============================ -->
+    <section id="fillSection" class="grid md:grid-cols-2 gap-6 mt-8 hidden">
+      <!-- Preview PDF + seletor de contrato -->
+      <div>
+        <select id="contractSelect" class="mb-2 border rounded p-1 w-full hidden"></select>
+        <div class="border rounded p-2 bg-white shadow">
+          <canvas id="pdfCanvas" class="w-full"></canvas>
+        </div>
+      </div>
+
+      <!-- Formulário -->
+      <form id="dataForm" class="bg-white border rounded shadow p-4 space-y-3 overflow-y-auto max-h-[80vh]">
+        <h2 class="text-xl font-semibold mb-3">Preencha os dados</h2>
+
+        <div>
+          <label class="block text-sm">Nome completo</label>
+          <input name="NOME" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">RG</label>
+          <input name="RG" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">CPF</label>
+          <input name="CPF" class="w-full border rounded p-1" required />
+        </div>
+        <!--  🔸  adicione novos campos abaixo seguindo o mesmo padrão  🔸 -->
+
+        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 mt-4">
+          Gerar PDF preenchido
+        </button>
+      </form>
+    </section>
+  </div>
+
+  <script>
+  /* ----------------------  CONFIGURAÇÃO DOS CONTRATOS  ---------------------- */
+  const CONTRACT_FILES = {
+    saude: {
+      label: 'Seguro‑Saúde',
+      file: 'AMPARE_TERMO_ADESAO_SAUDE.pdf',
+      // posições do PDF de saúde
+      positions: {
+        NOME: [ { x: 80, y: 720 }, { x: 80, y: 530 } ], // mesmo nome em dois lugares
+        RG:   { x: 90, y: 700 },
+        CPF:  { x: 380, y: 700 }
+      }
+    },
+    qualidonto: {
+      label: 'Plano Odontológico',
+      file: 'AMPARE_TERMO_ADESAO_QUALIDONTO.pdf',
+      positions: {
+        NOME: { x: 80, y: 715 },
+        RG:   { x: 90, y: 695 },
+        CPF:  { x: 380, y: 695 }
+      }
+    },
+    vitalmed: {
+      label: 'Assistência Familiar (Vitalmed)',
+      file: 'TERMO_ADESAO_VITALMED.pdf',
+      positions: {
+        NOME: { x: 100, y: 640 },
+        RG:   { x: 350, y: 640 },
+        CPF:  { x: 100, y: 620 }
+      }
+    }
+  };
+
+  const defaultScale = 1.05; // zoom do preview
+  const urlParams = new URLSearchParams(window.location.search);
+  const isFillMode = urlParams.has('preencher');
+
+  /* =========================  MODO 1 – GERAR LINK  ========================= */
+  if (!isFillMode) {
+    const checkboxes = document.querySelectorAll('.contractChk');
+    const formLinkInput = document.getElementById('formLink');
+    const copyBtn = document.getElementById('copyBtn');
+
+    copyBtn.onclick = () => {
+      const selected = [...checkboxes].filter(c => c.checked).map(c => c.value);
+      if (selected.length === 0) {
+        alert('Selecione ao menos um contrato.');
+        return;
+      }
+      const link = `${window.location.origin}${window.location.pathname}?preencher&contratos=${selected.join(',')}`;
+      formLinkInput.value = link;
+      navigator.clipboard.writeText(link);
+      copyBtn.textContent = 'Copiado!';
+      setTimeout(() => copyBtn.textContent = 'Gerar & Copiar', 2000);
+    };
+  }
+
+  /* =========================  MODO 2 – PREENCHER  ========================= */
+  if (isFillMode) {
+    document.getElementById('linkSection').classList.add('hidden');
+    document.getElementById('fillSection').classList.remove('hidden');
+
+    // contratos solicitados na URL
+    const contratosParam = urlParams.get('contratos') || 'saude';
+    const contratos = contratosParam.split(',').filter(id => CONTRACT_FILES[id]);
+
+    // dropdown se houver + de 1 contrato
+    const contractSelect = document.getElementById('contractSelect');
+    if (contratos.length > 1) {
+      contractSelect.classList.remove('hidden');
+      contratos.forEach(id => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = CONTRACT_FILES[id].label;
+        contractSelect.appendChild(opt);
+      });
+      contractSelect.addEventListener('change', () => renderPdf(contractSelect.value));
+    }
+
+    // renderiza o primeiro contrato
+    renderPdf(contratos[0]);
+
+    async function renderPdf(contractId) {
+      const { file } = CONTRACT_FILES[contractId];
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+      const loadingTask = pdfjsLib.getDocument(file);
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: defaultScale });
+      const canvas = document.getElementById('pdfCanvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      // salva id do contrato corrente para uso no submit
+      canvas.dataset.currentContract = contractId;
+    }
+
+    /* --------- Gerar PDF(s) preenchido(s) ---------- */
+    document.getElementById('dataForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = Object.fromEntries(new FormData(e.target).entries());
+
+      for (const id of contratos) {
+        const { file, positions } = CONTRACT_FILES[id];
+        const existingPdfBytes = await fetch(file).then(res => res.arrayBuffer());
+        const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
+        const [page] = pdfDoc.getPages();
+        const { height } = page.getSize();
+        const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        const fontSize = 10;
+
+        Object.entries(formData).forEach(([key, value]) => {
+          const pos = positions[key];
+          if (!pos) return;
+          const spots = Array.isArray(pos) ? pos : [pos];
+          spots.forEach(p => {
+            page.drawText(String(value), { x: p.x, y: typeof p.y === 'function' ? p.y(height) : p.y, size: fontSize, font });
+          });
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        saveAs(blob, `Contrato_${id}_Preenchido.pdf`);
+      }
+    });
+  }
+  </script>
+</body>
 </html>
