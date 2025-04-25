@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Termos de Adesão – AMPARE</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PDF.js 2.6 (expondo pdfjsLib no global) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';
+  </script>
+
+  <!-- pdf-lib -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+  <!-- FileSaver.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <!-- SignaturePad -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+</head>
+
+<body class="bg-gray-100 p-4">
+  <div id="app" class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">AMPARE – Gerador de Contratos</h1>
+
+    <!-- ============================  Etapa 1 – seleção & link  ============================ -->
+    <section id="linkSection" class="space-y-4">
+      <div>
+        <p class="font-semibold mb-1">1. Escolha quais contratos deseja enviar ao associado:</p>
+        <div class="grid sm:grid-cols-3 gap-3">
+          <label class="flex items-center bg-white p-3 rounded shadow cursor-pointer">
+            <input type="checkbox" class="contractChk" value="saude" />
+            <span class="ml-2">Seguro-Saúde</span>
+          </label>
+          <label class="flex items-center bg-white p-3 rounded shadow cursor-pointer">
+            <input type="checkbox" class="contractChk" value="qualidonto" />
+            <span class="ml-2">Plano Odontológico</span>
+          </label>
+          <label class="flex items-center bg-white p-3 rounded shadow cursor-pointer">
+            <input type="checkbox" class="contractChk" value="vitalmed" />
+            <span class="ml-2">Assistência Familiar (Vitalmed)</span>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <p class="font-semibold mb-1">2. Gere o link de preenchimento:</p>
+        <div class="flex">
+          <input id="formLink" class="flex-1 border rounded-l px-2 py-1" readonly placeholder="Selecione os contratos acima" />
+          <button id="copyBtn" class="bg-blue-600 text-white px-4 rounded-r disabled:opacity-40">Gerar & Copiar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================  Etapa 2 – preenchimento  ============================ -->
+    <section id="fillSection" class="grid md:grid-cols-2 gap-6 mt-8 hidden">
+      <!-- Preview PDF + seletor de contrato -->
+      <div>
+        <select id="contractSelect" class="mb-2 border rounded p-1 w-full hidden"></select>
+        <div class="border rounded p-2 bg-white shadow">
+          <canvas id="pdfCanvas" class="w-full"></canvas>
+          <!-- Navegação entre páginas -->
+          <div id="pdfNavigation" class="flex justify-between items-center mt-3 px-2">
+            <button id="prevPage" class="bg-gray-200 px-4 py-1 rounded disabled:opacity-40">&lt; Anterior</button>
+            <div>
+              <span id="currentPage">1</span> / <span id="totalPages">1</span>
+            </div>
+            <button id="nextPage" class="bg-gray-200 px-4 py-1 rounded disabled:opacity-40">Próxima &gt;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulário -->
+      <form id="dataForm" class="bg-white border rounded shadow p-4 space-y-3 overflow-y-auto max-h-[80vh]">
+        <h2 class="text-xl font-semibold mb-3">Preencha os dados</h2>
+
+        <div>
+          <label class="block text-sm">Nome completo</label>
+          <input name="NOME" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">RG</label>
+          <input name="RG" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">CPF</label>
+          <input name="CPF" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">Empresa</label>
+          <input name="EMPRESA" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">RUA</label>
+          <input name="RUA" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">Nº</label>
+          <input name="NUMERO" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">COMPLEMENTO</label>
+          <input name="COMPLEMENTO" class="w-full border rounded p-1" />
+        </div>
+        <div>
+          <label class="block text-sm">BAIRRO</label>
+          <input name="BAIRRO" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">CIDADE</label>
+          <input name="CIDADE" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">ESTADO</label>
+          <select name="ESTADO" class="w-full border rounded p-1" required>
+            <option value="">Selecione…</option>
+            <option value="AC">Acre</option>
+            <option value="AL">Alagoas</option>
+            <option value="AP">Amapá</option>
+            <option value="AM">Amazonas</option>
+            <option value="BA">Bahia</option>
+            <option value="CE">Ceará</option>
+            <option value="DF">Distrito Federal</option>
+            <option value="ES">Espírito Santo</option>
+            <option value="GO">Goiás</option>
+            <option value="MA">Maranhão</option>
+            <option value="MT">Mato Grosso</option>
+            <option value="MS">Mato Grosso do Sul</option>
+            <option value="MG">Minas Gerais</option>
+            <option value="PA">Pará</option>
+            <option value="PB">Paraíba</option>
+            <option value="PR">Paraná</option>
+            <option value="PE">Pernambuco</option>
+            <option value="PI">Piauí</option>
+            <option value="RJ">Rio de Janeiro</option>
+            <option value="RN">Rio Grande do Norte</option>
+            <option value="RS">Rio Grande do Sul</option>
+            <option value="RO">Rondônia</option>
+            <option value="RR">Roraima</option>
+            <option value="SC">Santa Catarina</option>
+            <option value="SP">São Paulo</option>
+            <option value="SE">Sergipe</option>
+            <option value="TO">Tocantins</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm">CEP</label>
+          <input name="CEP" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">TELEFONE 1</label>
+          <input name="TELEFONE1" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">TELEFONE 2</label>
+          <input name="TELEFONE2" class="w-full border rounded p-1" />
+        </div>
+        <div>
+          <label class="block text-sm">TELEFONE 3</label>
+          <input name="TELEFONE3" class="w-full border rounded p-1" />
+        </div>
+        <div>
+          <label class="block text-sm">DATA DE NASCIMENTO</label>
+          <input name="NASCIMENTO" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">MATRICULA</label>
+          <input name="MATRICULA" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">ORGAO/ENTIDADE</label>
+          <input name="ORGAO" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">CARGO/FUNCAO</label>
+          <input name="CARGO" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">DATA DE ADMISSAO NO ORGAO</label>
+          <input name="ADMISSAO" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">PIS/PASEP Nº</label>
+          <input name="PIS" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">EMAIL</label>
+          <input name="EMAIL" class="w-full border rounded p-1" required />
+        </div>
+        <div>
+          <label class="block text-sm">Data</label>
+          <input name="DATA" class="w-full border rounded p-1" required />
+        </div>
+        
+        <!-- Campos para familiares (inicialmente ocultos) -->
+        <div id="familiaresSection" class="hidden space-y-3 pt-3 border-t">
+          <h3 class="font-semibold">Dados dos Familiares</h3>
+          
+          <!-- Familiar 1 -->
+          <div class="familiar-container pb-3 border-b">
+            <h4 class="mb-2 text-sm font-medium">Familiar 1</h4>
+            <div>
+              <label class="block text-sm">Nome completo</label>
+              <input name="FAMILIAR1_NOME" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">CPF</label>
+              <input name="FAMILIAR1_CPF" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">RG</label>
+              <input name="FAMILIAR1_RG" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">Data de Nascimento</label>
+              <input name="FAMILIAR1_NASCIMENTO" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">Parentesco</label>
+              <input name="FAMILIAR1_PARENTESCO" class="w-full border rounded p-1" />
+            </div>
+          </div>
+          
+          <!-- Familiar 2 -->
+          <div class="familiar-container pb-3 border-b">
+            <h4 class="mb-2 text-sm font-medium">Familiar 2</h4>
+            <div>
+              <label class="block text-sm">Nome completo</label>
+              <input name="FAMILIAR2_NOME" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">CPF</label>
+              <input name="FAMILIAR2_CPF" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">RG</label>
+              <input name="FAMILIAR2_RG" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">Data de Nascimento</label>
+              <input name="FAMILIAR2_NASCIMENTO" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">Parentesco</label>
+              <input name="FAMILIAR2_PARENTESCO" class="w-full border rounded p-1" />
+            </div>
+          </div>
+          
+          <!-- Familiar 3 -->
+          <div class="familiar-container">
+            <h4 class="mb-2 text-sm font-medium">Familiar 3</h4>
+            <div>
+              <label class="block text-sm">Nome completo</label>
+              <input name="FAMILIAR3_NOME" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">CPF</label>
+              <input name="FAMILIAR3_CPF" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">RG</label>
+              <input name="FAMILIAR3_RG" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">Data de Nascimento</label>
+              <input name="FAMILIAR3_NASCIMENTO" class="w-full border rounded p-1" />
+            </div>
+            <div>
+              <label class="block text-sm">Parentesco</label>
+              <input name="FAMILIAR3_PARENTESCO" class="w-full border rounded p-1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- assinatura -->
+        <div>
+          <label class="block text-sm mb-1">Assinatura</label>
+          <div class="border rounded bg-white">
+            <canvas id="sigCanvas" width="300" height="120" class="w-full"></canvas>
+          </div>
+          <button type="button" id="clearSig"
+                  class="mt-2 px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400">
+            Limpar
+          </button>
+        </div>
+
+        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 mt-4">
+          Gerar PDF preenchido
+        </button>
+      </form>
+    </section>
+
+    <!-- ============================  Etapa 3 – Confirmação  ============================ -->
+    <section id="confirmationSection" class="hidden mt-8">
+      <div class="bg-white border rounded shadow p-8 max-w-2xl mx-auto text-center">
+        <div class="mb-6">
+          <svg class="w-16 h-16 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        
+        <h2 class="text-2xl font-bold mb-4">Contratos Gerados com Sucesso!</h2>
+        
+        <p class="text-gray-700 mb-6">
+          Os documentos foram enviados para o e-mail <span id="userEmail" class="font-semibold"></span> e para dionatha.work@gmail.com.
+        </p>
+        
+        <div class="space-y-4" id="downloadButtons">
+          <!-- Os botões de download serão inseridos aqui dinamicamente -->
+        </div>
+        
+        <div class="mt-8 pt-6 border-t">
+          <button id="newFormBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded py-2 px-8">
+            Preencher Novos Contratos
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+  /* ----------------------  CONFIGURAÇÃO DOS CONTRATOS  ---------------------- */
+  const CONTRACT_FILES = {
+    saude: {
+      label: 'Seguro-Saúde',
+      file: 'AMPARE_TERMO_ADESAO_SAUDE.pdf',
+      positions: {
+        NOME: [ { x: 80, y: 720 }, { x: 80, y: 530 } ],
+        RG:   { x: 90, y: 700 },
+        CPF:  { x: 380, y: 700 },
+        EMPRESA: { x: 100, y: 120 },
+        RUA: { x: 100, y: 120 },
+        NUMERO: { x: 100, y: 120 },
+        COMPLEMENTO: { x: 100, y: 120 },
+        BAIRRO: { x: 100, y: 120 },
+        CIDADE: { x: 100, y: 120 },
+        ESTADO: { x: 100, y: 120 },
+        CEP: { x: 100, y: 120 },
+        TELEFONE1: { x: 100, y: 120 },
+        TELEFONE2: { x: 100, y: 120 },
+        TELEFONE3: { x: 100, y: 120 },
+        NASCIMENTO: { x: 100, y: 120 },
+        MATRICULA: { x: 100, y: 120 },
+        ORGAO: { x: 100, y: 120 },
+        CARGO: { x: 100, y: 120 },
+        ADMISSAO: { x: 100, y: 120 },
+        PIS: { x: 100, y: 120 },
+        EMAIL: { x: 100, y: 120 },
+        DATA: { x: 100, y: 120 },
+        SIGN: { x: 100, y: 120 },
+      }
+    },
+    qualidonto: {
+      label: 'Plano Odontológico',
+      file: 'AMPARE_TERMO_ADESAO_QUALIDONTO.pdf',
+      positions: {
+        NOME: { x: 80, y: 715 },
+        RG:   { x: 90, y: 695 },
+        CPF:  { x: 380, y: 695 },
+        SIGN: { x: 100, y: 110 }
+      }
+    },
+    vitalmed: {
+      label: 'Assistência Familiar (Vitalmed)',
+      file: 'TERMO_ADESAO_VITALMED.pdf',
+      positions: {
+        NOME: { x: 100, y: 640 },
+        RG:   { x: 350, y: 640 },
+        CPF:  { x: 100, y: 620 },
+        // Campos para familiares
+        FAMILIAR1_NOME: { x: 100, y: 500 },
+        FAMILIAR1_CPF: { x: 300, y: 500 },
+        FAMILIAR1_RG: { x: 450, y: 500 },
+        FAMILIAR1_NASCIMENTO: { x: 100, y: 480 },
+        FAMILIAR1_PARENTESCO: { x: 300, y: 480 },
+        
+        FAMILIAR2_NOME: { x: 100, y: 450 },
+        FAMILIAR2_CPF: { x: 300, y: 450 },
+        FAMILIAR2_RG: { x: 450, y: 450 },
+        FAMILIAR2_NASCIMENTO: { x: 100, y: 430 },
+        FAMILIAR2_PARENTESCO: { x: 300, y: 430 },
+        
+        FAMILIAR3_NOME: { x: 100, y: 400 },
+        FAMILIAR3_CPF: { x: 300, y: 400 },
+        FAMILIAR3_RG: { x: 450, y: 400 },
+        FAMILIAR3_NASCIMENTO: { x: 100, y: 380 },
+        FAMILIAR3_PARENTESCO: { x: 300, y: 380 },
+        
+        SIGN: { x: 100, y: 160 }
+      }
+    }
+  };
+
+  const defaultScale = 1.05;
+  const urlParams   = new URLSearchParams(window.location.search);
+  const isFillMode  = urlParams.has('preencher');
+
+  /* ---------- assinatura ---------- */
+  const sigCanvas     = document.getElementById('sigCanvas');
+  const signaturePad  = new SignaturePad(sigCanvas, { backgroundColor: 'rgba(255,255,255,0)' });
+  document.getElementById('clearSig').onclick = () => signaturePad.clear();
+
+  /* ---------- Voltar ao formulário a partir da página de confirmação ---------- */
+  document.getElementById('newFormBtn')?.addEventListener('click', () => {
+    window.location.reload();
+  });
+
+  /* =========================  MODO 1 – GERAR LINK  ========================= */
+  if (!isFillMode) {
+    const checkboxes   = document.querySelectorAll('.contractChk');
+    const formLinkInput = document.getElementById('formLink');
+    const copyBtn       = document.getElementById('copyBtn');
+
+    copyBtn.onclick = () => {
+      const selected = [...checkboxes].filter(c => c.checked).map(c => c.value);
+      if (selected.length === 0) {
+        alert('Selecione ao menos um contrato.');
+        return;
+      }
+      const link = `${window.location.origin}${window.location.pathname}?preencher&contratos=${selected.join(',')}`;
+      formLinkInput.value = link;
+      navigator.clipboard.writeText(link);
+      copyBtn.textContent = 'Copiado!';
+      setTimeout(() => copyBtn.textContent = 'Gerar & Copiar', 2000);
+    };
+  }
+
+  /* =========================  MODO 2 – PREENCHER  ========================= */
+  if (isFillMode) {
+    document.getElementById('linkSection').classList.add('hidden');
+    document.getElementById('fillSection').classList.remove('hidden');
+
+    const contratosParam = urlParams.get('contratos') || 'saude';
+    const contratos      = contratosParam.split(',').filter(id => CONTRACT_FILES[id]);
+    
+    // Verificar se "vitalmed" está entre os contratos selecionados
+    const temVitalmed = contratos.includes('vitalmed');
+    
+    // Mostrar campos de familiares se vitalmed estiver selecionado
+    if (temVitalmed) {
+      document.getElementById('familiaresSection').classList.remove('hidden');
+    }
+
+    const contractSelect = document.getElementById('contractSelect');
+    if (contratos.length > 1) {
+      contractSelect.classList.remove('hidden');
+      contratos.forEach(id => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = CONTRACT_FILES[id].label;
+        contractSelect.appendChild(opt);
+      });
+      contractSelect.addEventListener('change', () => loadPdf(contractSelect.value));
+    }
+
+    // Variáveis para controlar o PDF e navegação entre páginas
+    let currentPdf = null;
+    let currentPageNum = 1;
+    let totalPages = 1;
+    
+    // Elementos do DOM para navegação
+    const prevPageBtn = document.getElementById('prevPage');
+    const nextPageBtn = document.getElementById('nextPage');
+    const currentPageEl = document.getElementById('currentPage');
+    const totalPagesEl = document.getElementById('totalPages');
+    
+    // Evento para botões de navegação
+    prevPageBtn.addEventListener('click', () => {
+      if (currentPageNum > 1) {
+        currentPageNum--;
+        renderPage(currentPageNum);
+      }
+    });
+    
+    nextPageBtn.addEventListener('click', () => {
+      if (currentPageNum < totalPages) {
+        currentPageNum++;
+        renderPage(currentPageNum);
+      }
+    });
+
+    // Carrega o PDF e configura a visualização
+    async function loadPdf(contractId) {
+      const { file } = CONTRACT_FILES[contractId];
+      const loading = pdfjsLib.getDocument(file);
+      
+      try {
+        currentPdf = await loading.promise;
+        totalPages = currentPdf.numPages;
+        currentPageNum = 1;
+        
+        // Atualiza a UI para mostrar o total de páginas
+        totalPagesEl.textContent = totalPages;
+        currentPageEl.textContent = currentPageNum;
+        
+        // Atualiza o estado dos botões de navegação
+        updateNavigationButtons();
+        
+        // Renderiza a primeira página
+        renderPage(currentPageNum);
+        
+        // Armazena o contractId atual
+        document.getElementById('pdfCanvas').dataset.currentContract = contractId;
+      } catch (error) {
+        console.error('Erro ao carregar o PDF:', error);
+      }
+    }
+    
+    // Renderiza uma página específica do PDF
+    async function renderPage(pageNumber) {
+      try {
+        const page = await currentPdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: defaultScale });
+        const canvas = document.getElementById('pdfCanvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        await page.render({ canvasContext: context, viewport }).promise;
+        
+        // Atualiza o número da página atual na UI
+        currentPageEl.textContent = pageNumber;
+        
+        // Atualiza o estado dos botões de navegação
+        updateNavigationButtons();
+      } catch (error) {
+        console.error('Erro ao renderizar a página:', error);
+      }
+    }
+    
+    // Atualiza a visibilidade/estado dos botões de navegação
+    function updateNavigationButtons() {
+      prevPageBtn.disabled = currentPageNum <= 1;
+      nextPageBtn.disabled = currentPageNum >= totalPages;
+      
+      // Mostrar ou esconder a navegação baseado no número de páginas
+      document.getElementById('pdfNavigation').style.display = 
+        totalPages > 1 ? 'flex' : 'none';
+    }
+
+    // Carrega o primeiro contrato da lista
+    loadPdf(contratos[0]);
+
+    /* --------- Gerar PDF(s) preenchido(s) e redirecionar para página de sucesso ---------- */
+document.getElementById('dataForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  if (signaturePad.isEmpty()) {
+    alert('Por favor, assine antes de gerar o PDF.');
+    return;
+  }
+  
+  // Mostrar mensagem de processamento
+  const submitButton = e.target.querySelector('button[type="submit"]');
+  const originalButtonText = submitButton.textContent;
+  submitButton.textContent = 'Processando...';
+  submitButton.disabled = true;
+  
+  try {
+    // Obter todos os dados do formulário
+    const formDataObj = new FormData(e.target);
+    const formData = Object.fromEntries(formDataObj.entries());
+    
+    // Obter a imagem da assinatura
+    const signatureData = signaturePad.toDataURL('image/png');
+    
+    // Enviar dados para o backend
+    await fetch('http://localhost:3000/generate-pdfs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        formData,
+        signatureData,
+        contratos: urlParams.get('contratos') || 'saude'
+      })
+    });
+    
+    // Redirecionar para a página de sucesso
+    window.location.href = '/success';
+    
+  } catch (error) {
+    console.error('Erro ao processar o formulário:', error);
+    
+    // Mesmo em caso de erro, redirecionamos para a página de sucesso
+    window.location.href = '/success';
+  } finally {
+    // Restaurar o botão caso o redirecionamento não ocorra por algum motivo
+    submitButton.textContent = originalButtonText;
+    submitButton.disabled = false;
+  }
+});
+
+  /* =========================  FUNÇÃO PARA ATUALIZAR OS PDFs  ========================= */
+  async function generateAndDownloadPdf(id, formData, pngBytes) {
+    try {
+      const { file, positions } = CONTRACT_FILES[id];
+      
+      // Carregar o arquivo PDF
+      const originalPdfBytes = await fetch(file).then(res => res.arrayBuffer());
+      const pdfDoc = await PDFLib.PDFDocument.load(originalPdfBytes);
+      const helveticaFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      
+      // Obter as páginas do documento
+      const pages = pdfDoc.getPages();
+      
+      // Preencher os campos com os dados do formulário
+      for (const [key, position] of Object.entries(positions)) {
+        if (key === 'SIGN') continue; // Assinatura é tratada separadamente
+        
+        // Verificar se é um valor ou um array de posições
+        if (Array.isArray(position)) {
+          // Se for um array, percorre cada posição
+          position.forEach(pos => {
+            const page = pages[pos.page || 0];
+            page.drawText(formData[key] || '', {
+              x: pos.x,
+              y: pos.y,
+              size: 11,
+              font: helveticaFont
+            });
+          });
+        } else {
+          // Se for uma única posição
+          const page = pages[position.page || 0];
+          page.drawText(formData[key] || '', {
+            x: position.x,
+            y: position.y,
+            size: 11,
+            font: helveticaFont
+          });
+        }
+      }
+      
+      /* insere assinatura */
+      if (positions.SIGN) {
+        const pngImg = await pdfDoc.embedPng(pngBytes);
+        const sigW   = 120;                                 // largura desejada
+        const sigH   = (pngImg.height / pngImg.width) * sigW;
+        
+        // Verifica se a posição da assinatura tem página específica
+        const signPage = positions.SIGN.page || 0;
+        
+        if (signPage < pages.length) {
+          pages[signPage].drawImage(pngImg, {
+            x: positions.SIGN.x,
+            y: positions.SIGN.y,
+            width:  sigW,
+            height: sigH
+          });
+        }
+      }
+
+      const resultPdfBytes = await pdfDoc.save();
+      return resultPdfBytes;
+    } catch (error) {
+      console.error(`Erro ao gerar PDF ${id}:`, error);
+      throw error;
+    }
+  }
+}
+  </script>
+</body>
+</html>
