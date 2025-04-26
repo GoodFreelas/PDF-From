@@ -331,39 +331,58 @@
       label: 'Seguro-Saúde',
       file: 'AMPARE_TERMO_ADESAO_SAUDE.pdf',
       positions: {
-        NOME: [ { x: 80, y: 720 }, { x: 80, y: 530 } ],
-        RG:   { x: 90, y: 700 },
-        CPF:  { x: 380, y: 700 },
-        EMPRESA: { x: 100, y: 120 },
-        RUA: { x: 100, y: 120 },
-        NUMERO: { x: 100, y: 120 },
-        COMPLEMENTO: { x: 100, y: 120 },
-        BAIRRO: { x: 100, y: 120 },
-        CIDADE: { x: 100, y: 120 },
-        ESTADO: { x: 100, y: 120 },
-        CEP: { x: 100, y: 120 },
-        TELEFONE1: { x: 100, y: 120 },
-        TELEFONE2: { x: 100, y: 120 },
-        TELEFONE3: { x: 100, y: 120 },
-        NASCIMENTO: { x: 100, y: 120 },
-        MATRICULA: { x: 100, y: 120 },
-        ORGAO: { x: 100, y: 120 },
-        CARGO: { x: 100, y: 120 },
-        ADMISSAO: { x: 100, y: 120 },
-        PIS: { x: 100, y: 120 },
-        EMAIL: { x: 100, y: 120 },
-        DATA: { x: 100, y: 120 },
-        SIGN: { x: 100, y: 120 },
+        NOME: [ { x: 80, y: 675 }, { x: 92, y: 455 } ],
+        RG:   { x: 90, y: 660 },
+        CPF:  { x: 380, y: 660 },
+        EMPRESA: { x: 475, y: 630 },
+        RUA: { x: 110, y: 430 },
+        NUMERO: { x: 515, y: 430 },
+        COMPLEMENTO: { x: 135, y: 403 },
+        BAIRRO: { x: 95, y: 378 },
+        CIDADE: { x: 298, y: 378 },
+        ESTADO: { x: 440, y: 378 },
+        CEP: { x: 485, y: 378 },
+        TELEFONE1: { x: 115, y: 352 },
+        TELEFONE2: { x: 210, y: 352 },
+        TELEFONE3: { x: 290, y: 352 },
+        NASCIMENTO: { x: 485, y: 352 },
+        MATRICULA: { x: 120, y: 328 },
+        ORGAO: { x: 370, y: 328 },
+        CARGO: { x: 138, y: 303 },
+        ADMISSAO: { x: 480, y: 303 },
+        PIS: { x: 120, y: 277 },
+        EMAIL: { x: 120, y: 253 },
+        DATA: { x: 360, y: 225 },
+        SIGN: { x: 92, y: 150 },
       }
     },
     qualidonto: {
       label: 'Plano Odontológico',
       file: 'AMPARE_TERMO_ADESAO_QUALIDONTO.pdf',
       positions: {
-        NOME: { x: 80, y: 715 },
-        RG:   { x: 90, y: 695 },
-        CPF:  { x: 380, y: 695 },
-        SIGN: { x: 100, y: 110 }
+        NOME: [ { x: 80, y: 650 }, { x: 92, y: 420 } ],
+        RG:   { x: 90, y: 635 },
+        CPF:  { x: 380, y: 635 },
+        EMPRESA: { x: 245, y: 605 },
+        RUA: { x: 110, y: 396 },
+        NUMERO: { x: 515, y: 396},
+        COMPLEMENTO: { x: 140, y: 371 },
+        BAIRRO: { x: 98, y: 345 },
+        CIDADE: { x: 296, y: 345 },
+        ESTADO: { x: 440, y: 345 },
+        CEP: { x: 488, y: 345 },
+        TELEFONE1: { x: 115, y: 320 },
+        TELEFONE2: { x: 210, y: 320 },
+        TELEFONE3: { x: 290, y: 320 },
+        NASCIMENTO: { x: 475, y: 320 },
+        MATRICULA: { x: 120, y: 295 },
+        ORGAO: { x: 370, y: 295 },
+        CARGO: { x: 138, y: 270 },
+        ADMISSAO: { x: 480, y: 270 },
+        PIS: { x: 120, y: 244 },
+        EMAIL: { x: 110, y: 218 },
+        DATA: { x: 360, y: 193 },
+        SIGN: { x: 92, y: 130 },
       }
     },
     vitalmed: {
@@ -549,7 +568,7 @@
     loadPdf(contratos[0]);
 
     /* --------- Gerar PDF(s) preenchido(s) e redirecionar para página de sucesso ---------- */
-document.getElementById('dataForm').addEventListener('submit', async (e) => {
+    document.getElementById('dataForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   
   if (signaturePad.isEmpty()) {
@@ -570,8 +589,26 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     
     // Obter a imagem da assinatura
     const signatureData = signaturePad.toDataURL('image/png');
+    const signatureBytes = await fetch(signatureData).then(res => res.arrayBuffer());
     
-    // Enviar dados para o backend
+    // Gerar os PDFs localmente
+    const contractList = (urlParams.get('contratos') || 'saude').split(',');
+    const generatedPdfs = {};
+    
+    // Gerar cada PDF
+    for (const contractId of contractList) {
+      if (CONTRACT_FILES[contractId]) {
+        const pdfBytes = await generateAndDownloadPdf(contractId, formData, signatureBytes);
+        generatedPdfs[contractId] = pdfBytes;
+        
+        // Baixar o PDF automaticamente
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const fileName = `${CONTRACT_FILES[contractId].label} - ${formData.NOME}.pdf`.replace(/\s+/g, '_');
+        saveAs(blob, fileName);
+      }
+    }
+    
+    // Enviar dados para o backend (para email)
     await fetch('http://localhost:3000/generate-pdfs', {
       method: 'POST',
       headers: {
@@ -584,16 +621,39 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
       })
     });
     
-    // Redirecionar para a página de sucesso
-    window.location.href = '/success';
+    // Mostrar seção de confirmação
+    document.getElementById('fillSection').classList.add('hidden');
+    document.getElementById('confirmationSection').classList.remove('hidden');
+    
+    // Preencher o email do usuário na confirmação
+    document.getElementById('userEmail').textContent = formData.EMAIL || '';
+    
+    // Adicionar links para download adicional se necessário
+    const downloadButtons = document.getElementById('downloadButtons');
+    downloadButtons.innerHTML = '';
+    
+    // Adicionar um botão para cada PDF gerado
+    for (const contractId of contractList) {
+      if (CONTRACT_FILES[contractId]) {
+        const button = document.createElement('button');
+        button.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white rounded py-2';
+        button.textContent = `Baixar ${CONTRACT_FILES[contractId].label}`;
+        
+        button.addEventListener('click', () => {
+          const blob = new Blob([generatedPdfs[contractId]], { type: 'application/pdf' });
+          const fileName = `${CONTRACT_FILES[contractId].label} - ${formData.NOME}.pdf`.replace(/\s+/g, '_');
+          saveAs(blob, fileName);
+        });
+        
+        downloadButtons.appendChild(button);
+      }
+    }
     
   } catch (error) {
     console.error('Erro ao processar o formulário:', error);
-    
-    // Mesmo em caso de erro, redirecionamos para a página de sucesso
-    window.location.href = '/success';
+    alert('Ocorreu um erro ao gerar os PDFs. Por favor, tente novamente.');
   } finally {
-    // Restaurar o botão caso o redirecionamento não ocorra por algum motivo
+    // Restaurar o botão
     submitButton.textContent = originalButtonText;
     submitButton.disabled = false;
   }
