@@ -19,14 +19,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // -------- CORS ---------------------------------------------------------------
-origin: [
-  'http://127.0.0.1:5500',
-  'http://127.0.0.1:5173/',
-  'https://meusite.com'
-],             // responde ao pre‑flight
+app.use(cors({
+  origin: '*',  // Permite qualquer origem
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-  // -------- Body‑Parser --------------------------------------------------------
-  app.use(express.json({ limit: '50mb' }));   // front envia JSON
+// -------- Body‑Parser --------------------------------------------------------
+app.use(express.json({ limit: '50mb' }));   // front envia JSON
 // Se usar multipart/form‑data: const upload = multer(); e remova esta linha
 const upload = multer();
 
