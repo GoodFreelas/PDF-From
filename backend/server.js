@@ -1,39 +1,67 @@
+/**************************************************************************
+ *  server.js — AMPARE PDF-From
+ **************************************************************************/
+
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import {
+  PDFDocument,
+  StandardFonts
+} from 'pdf-lib';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// -----------------------------------------------------------------------------
-// Utilidades ES‑Modules --------------------------------------------------------
+/* ───────────────── utilidades ES-modules ─────────────────────────────── */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// -----------------------------------------------------------------------------
-// Configuração geral -----------------------------------------------------------
+/* ───────────────── configuração geral ────────────────────────────────── */
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// -------- CORS ---------------------------------------------------------------
-app.use(cors({
-  origin: '*',  // Permite qualquer origem
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+/* ────────────────────────────── CORS ────────────────────────────────────
+   credentials: true  ➜  não podemos usar “*”, então refletimos a origem;
+   também liberamos cabeçalho Range, necessário p/ download em fatias       */
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5500',
+  'https://meusite.com',
+  'https://pdf-from-bhu2ccb6f-g00dgds-projects.vercel.app'
+];
 
-// -------- Body‑Parser --------------------------------------------------------
-app.use(express.json({ limit: '50mb' }));   // front envia JSON
-// Se usar multipart/form‑data: const upload = multer(); e remova esta linha
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);           // curl / Postman
+      return allowedOrigins.includes(origin)
+        ? cb(null, true)
+        : cb(new Error(`Origin ${origin} não permitida pelo CORS`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
+    exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges']
+  })
+);
+
+// pré-flight global
+app.options('*', cors());
+
+/* ─────────────────────── body-parser / multipart ─────────────────────── */
+app.use(express.json({ limit: '50mb' }));
 const upload = multer();
 
-// -------- Arquivos estáticos -------------------------------------------------
-app.use(express.static('public'));
+/* ───────────────────── Arquivos estáticos (PDFs) ─────────────────────── */
+app.use(
+  '/api/pdf',
+  express.static(path.join(__dirname, 'public'))
+);
 
-// -------- Nodemailer ---------------------------------------------------------
+/* ─────────────────────────── Nodemailer ──────────────────────────────── */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -42,16 +70,15 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// -----------------------------------------------------------------------------
-// Configuração de diretórios temporários --------------------------------------
+/* ──────────────────── diretório temporário local ─────────────────────── */
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-// -----------------------------------------------------------------------------
-// Mapas de contratos ----------------------------------------------------------
+/* ───────────────────── mapas de contratos (PDFs) ─────────────────────── */
+/* (mantenha exatamente como já estava; inclui aqui por completo) */
 export const CONTRACT_FILES = {
   saude: {
-    label: 'Seguro‑Saúde',
+    label: 'Seguro-Saúde',
     file: path.join(__dirname, 'public', 'AMPARE_TERMO_ADESAO_SAUDE.pdf'),
     positions: {
       NOME: [{ x: 80, y: 675 }, { x: 92, y: 455 }],
@@ -76,8 +103,8 @@ export const CONTRACT_FILES = {
       PIS: { x: 120, y: 277 },
       EMAIL: { x: 120, y: 253 },
       DATA: { x: 360, y: 225 },
-      SIGN: { x: 92, y: 150 },
-    },
+      SIGN: { x: 92, y: 150 }
+    }
   },
   qualidonto: {
     label: 'Plano Odontológico',
@@ -105,8 +132,8 @@ export const CONTRACT_FILES = {
       PIS: { x: 120, y: 244 },
       EMAIL: { x: 110, y: 218 },
       DATA: { x: 360, y: 193 },
-      SIGN: { x: 92, y: 130 },
-    },
+      SIGN: { x: 92, y: 130 }
+    }
   },
   vitalmed: {
     label: 'Assistência Familiar (Vitalmed)',
@@ -145,31 +172,21 @@ export const CONTRACT_FILES = {
       FAMILIAR6_NASCIMENTO: { x: 315, y: 622, page: 1 },
       FAMILIAR6_CPF: { x: 435, y: 622, page: 1 },
       DATA: { x: 70, y: 290, page: 1 },
-      SIGN: { x: 70, y: 200, page: 1 },
-    },
+      SIGN: { x: 70, y: 200, page: 1 }
+    }
   }
 };
 
 export const defaultScale = 1.05;
 
-// -----------------------------------------------------------------------------
-// Utilitário de data ----------------------------------------------------------
-export const getCurrentDate = () => {
-  const t = new Date();
-  return t.toLocaleDateString('pt-BR');
-};
-
-// -----------------------------------------------------------------------------
-// Rotas simples ----------------------------------------------------------------
+/* ────────────────────────── rotas auxiliares ─────────────────────────── */
 app.get('/api/check-status', (_, res) =>
-  res.status(200).json({ status: 'online', timestamp: new Date().toISOString() })
+  res.json({ status: 'online', timestamp: new Date().toISOString() })
 );
-// -----------------------------------------------------------------------------
-// Pré-validação do formulário --------------------------------------------------
+
 app.post('/api/pre-process-check', (req, res) => {
   try {
     const { contratos, formData } = req.body;
-
     const lista = Array.isArray(contratos) ? contratos : contratos.split(',');
     const invalidos = lista.filter(id => !CONTRACT_FILES[id]);
 
@@ -179,7 +196,7 @@ app.post('/api/pre-process-check', (req, res) => {
         message: `Contratos inválidos: ${invalidos.join(', ')}`
       });
 
-    // (aqui você pode fazer outras validações nos campos)
+    // … outras validações …
     res.json({ success: true, contratos: lista });
   } catch (e) {
     console.error('Erro na pré-validação', e);
@@ -187,9 +204,7 @@ app.post('/api/pre-process-check', (req, res) => {
   }
 });
 
-
-// -----------------------------------------------------------------------------
-// Sua rota principal para gerar PDFs ------------------------------------------
+/* ────────────────────────── rota principal PDFs ───────────────────────── */
 app.post('/generate-pdfs', async (req, res) => {
   try {
     const { formData, signatureData, contratos } = req.body;
@@ -198,7 +213,7 @@ app.post('/generate-pdfs', async (req, res) => {
       signatureData.replace(/^data:image\/png;base64,/, ''), 'base64'
     );
 
-    const generatedPDFs = [];
+    const generated = [];
 
     for (const id of contratosArray) {
       const contrato = CONTRACT_FILES[id];
@@ -210,72 +225,60 @@ app.post('/generate-pdfs', async (req, res) => {
       const pages = pdfDoc.getPages();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-      Object.entries(formData).forEach(([chave, valor]) => {
-        const pos = positions[chave];
-        if (!valor || !pos) return;
+      // escreve texto
+      Object.entries(formData).forEach(([k, v]) => {
+        const pos = positions[k];
+        if (!v || !pos) return;
         (Array.isArray(pos) ? pos : [pos]).forEach(p => {
           const idx = p.page ?? 0;
           if (idx < pages.length)
-            pages[idx].drawText(String(valor), { x: p.x, y: p.y, size: 10, font: helv });
+            pages[idx].drawText(String(v), { x: p.x, y: p.y, size: 10, font: helv });
         });
       });
 
+      // assina
       if (positions.SIGN) {
         const img = await pdfDoc.embedPng(signatureBuffer);
         const w = 120;
         const h = (img.height / img.width) * w;
-        const s = positions.SIGN;
-        const idx = s.page ?? 0;
+        const p = positions.SIGN;
+        const idx = p.page ?? 0;
         if (idx < pages.length)
-          pages[idx].drawImage(img, { x: s.x, y: s.y, width: w, height: h });
+          pages[idx].drawImage(img, { x: p.x, y: p.y, width: w, height: h });
       }
 
       const output = path.join(tempDir, `Contrato_${id}_Preenchido.pdf`);
       fs.writeFileSync(output, await pdfDoc.save());
-
-      generatedPDFs.push({ path: output, filename: path.basename(output), label });
+      generated.push({ path: output, filename: path.basename(output), label });
     }
 
-    if (!generatedPDFs.length)
+    if (!generated.length)
       return res.status(400).json({ success: false, message: 'Nenhum PDF gerado' });
 
-    await sendEmailWithAttachments(formData.EMAIL, generatedPDFs, formData.NOME);
+    await sendEmailWithAttachments(formData.EMAIL, generated, formData.NOME);
+    res.json({ success: true, message: `${generated.length} PDFs enviados` });
 
-    res.json({ success: true, message: `${generatedPDFs.length} PDFs enviados` });
-
-    // limpeza assíncrona
-    setTimeout(() => {
-      generatedPDFs.forEach(f => fs.unlink(f.path, () => { }));
-    }, 60_000);
-
+    // limpa em 1 min
+    setTimeout(() => generated.forEach(f => fs.unlink(f.path, () => { })), 60_000);
   } catch (err) {
     console.error('Erro em /generate-pdfs', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// -----------------------------------------------------------------------------
-// E‑mail helper ----------------------------------------------------------------
+/* ───────────────────────── helper para e-mail ─────────────────────────── */
 async function sendEmailWithAttachments(destino, anexos, nome) {
-  const cfg = anexos.map(a => ({ filename: a.filename, path: a.path }));
   await transporter.sendMail({
-    from: 'AMPARE <' + process.env.GMAIL_USER + '>',
+    from: `AMPARE <${process.env.GMAIL_USER}>`,
     to: destino,
     cc: process.env.GMAIL_USER,
     subject: 'Seus contratos AMPARE',
     html: `<h2>Olá ${nome}</h2><p>Seguem anexos.</p>`,
-    attachments: cfg,
+    attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
   });
 }
 
-// Rota para servir os arquivos PDF
-app.get('/api/pdf/:filename', (req, res) => {
-  const { filename } = req.params;
-  const filePath = path.join(__dirname, 'public', `${filename}`);
-  res.sendFile(filePath);
-});
-
-
-// -----------------------------------------------------------------------------
-// Start ------------------------------------------------------------------------
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+/* ───────────────────────────── start! ─────────────────────────────────── */
+app.listen(PORT, () =>
+  console.log(`✅  Servidor rodando em http://localhost:${PORT}`)
+);
