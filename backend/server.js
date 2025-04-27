@@ -30,7 +30,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5500',
   'https://meusite.com',
-  'https://pdf-from-bhu2ccb6f-g00dgds-projects.vercel.app'
+  'https://pdf-from.vercel.app/'
 ];
 
 app.use(
