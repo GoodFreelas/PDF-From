@@ -23,14 +23,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* ────────────────────────────── CORS ────────────────────────────────────
-   credentials: true  ➜  não podemos usar “*”, então refletimos a origem;
-   também liberamos cabeçalho Range, necessário p/ download em fatias       */
+/* ────────────────────────────── CORS ────────────────────────────────────*/
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5500',
   'https://meusite.com',
-  'https://pdf-from.vercel.app/'
+  'https://pdf-from.vercel.app'
 ];
 
 app.use(
