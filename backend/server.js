@@ -1,246 +1,282 @@
-// Importações necessárias
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const multer = require('multer');
-const { PDFDocument, StandardFonts } = require('pdf-lib');
-const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
-const upload = multer();
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Configuração do servidor
+// -----------------------------------------------------------------------------
+// Utilidades ES‑Modules --------------------------------------------------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// -----------------------------------------------------------------------------
+// Configuração geral -----------------------------------------------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(express.static('public')); // Para servir arquivos estáticos
+// -------- CORS ---------------------------------------------------------------
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+}));
+app.options('*', cors());             // responde ao pre‑flight
 
-// Configuração do transporte de email
+// -------- Body‑Parser --------------------------------------------------------
+app.use(express.json({ limit: '50mb' }));   // front envia JSON
+// Se usar multipart/form‑data: const upload = multer(); e remova esta linha
+const upload = multer();
+
+// -------- Arquivos estáticos -------------------------------------------------
+app.use(express.static('public'));
+
+// -------- Nodemailer ---------------------------------------------------------
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // ou outro serviço de sua preferência
+  service: 'gmail',
   auth: {
-    user: 'dionatha.work@gmail.com', // substitua pelo seu email
-    pass: 'uykp sgqz sfjj alrt' // use uma senha de aplicativo para o Gmail
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASS
   }
 });
 
-// Pasta para armazenar PDFs temporários
+// -----------------------------------------------------------------------------
+// Configuração de diretórios temporários --------------------------------------
 const tempDir = path.join(__dirname, 'temp');
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir);
-}
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-// Configuração dos contratos
-const CONTRACT_FILES = {
+// -----------------------------------------------------------------------------
+// Mapas de contratos ----------------------------------------------------------
+export const CONTRACT_FILES = {
   saude: {
-    label: 'Seguro-Saúde',
+    label: 'Seguro‑Saúde',
     file: path.join(__dirname, 'public', 'AMPARE_TERMO_ADESAO_SAUDE.pdf'),
     positions: {
-      NOME: [{ x: 80, y: 720 }, { x: 80, y: 530 }],
-      RG: { x: 90, y: 700 },
-      CPF: { x: 380, y: 700 },
-      EMPRESA: { x: 100, y: 120 },
-      RUA: { x: 100, y: 120 },
-      NUMERO: { x: 100, y: 120 },
-      COMPLEMENTO: { x: 100, y: 120 },
-      BAIRRO: { x: 100, y: 120 },
-      CIDADE: { x: 100, y: 120 },
-      ESTADO: { x: 100, y: 120 },
-      CEP: { x: 100, y: 120 },
-      TELEFONE1: { x: 100, y: 120 },
-      TELEFONE2: { x: 100, y: 120 },
-      TELEFONE3: { x: 100, y: 120 },
-      NASCIMENTO: { x: 100, y: 120 },
-      MATRICULA: { x: 100, y: 120 },
-      ORGAO: { x: 100, y: 120 },
-      CARGO: { x: 100, y: 120 },
-      ADMISSAO: { x: 100, y: 120 },
-      PIS: { x: 100, y: 120 },
-      EMAIL: { x: 100, y: 120 },
-      DATA: { x: 100, y: 120 },
-      SIGN: { x: 100, y: 120 },
-    }
+      NOME: [{ x: 80, y: 675 }, { x: 92, y: 455 }],
+      RG: { x: 90, y: 660 },
+      CPF: { x: 380, y: 660 },
+      EMPRESA: { x: 475, y: 630 },
+      RUA: { x: 110, y: 430 },
+      NUMERO: { x: 515, y: 430 },
+      COMPLEMENTO: { x: 135, y: 403 },
+      BAIRRO: { x: 95, y: 378 },
+      CIDADE: { x: 298, y: 378 },
+      ESTADO: { x: 440, y: 378 },
+      CEP: { x: 485, y: 378 },
+      TELEFONE1: { x: 115, y: 352 },
+      TELEFONE2: { x: 210, y: 352 },
+      TELEFONE3: { x: 290, y: 352 },
+      NASCIMENTO: { x: 485, y: 352 },
+      MATRICULA: { x: 120, y: 328 },
+      ORGAO: { x: 370, y: 328 },
+      CARGO: { x: 138, y: 303 },
+      ADMISSAO: { x: 480, y: 303 },
+      PIS: { x: 120, y: 277 },
+      EMAIL: { x: 120, y: 253 },
+      DATA: { x: 360, y: 225 },
+      SIGN: { x: 92, y: 150 },
+    },
   },
   qualidonto: {
     label: 'Plano Odontológico',
     file: path.join(__dirname, 'public', 'AMPARE_TERMO_ADESAO_QUALIDONTO.pdf'),
     positions: {
-      NOME: { x: 80, y: 715 },
-      RG: { x: 90, y: 695 },
-      CPF: { x: 380, y: 695 },
-      SIGN: { x: 100, y: 110 }
-    }
+      NOME: [{ x: 80, y: 650 }, { x: 92, y: 420 }],
+      RG: { x: 90, y: 635 },
+      CPF: { x: 380, y: 635 },
+      EMPRESA: { x: 245, y: 605 },
+      RUA: { x: 110, y: 396 },
+      NUMERO: { x: 515, y: 396 },
+      COMPLEMENTO: { x: 140, y: 371 },
+      BAIRRO: { x: 98, y: 345 },
+      CIDADE: { x: 296, y: 345 },
+      ESTADO: { x: 440, y: 345 },
+      CEP: { x: 488, y: 345 },
+      TELEFONE1: { x: 115, y: 320 },
+      TELEFONE2: { x: 210, y: 320 },
+      TELEFONE3: { x: 290, y: 320 },
+      NASCIMENTO: { x: 475, y: 320 },
+      MATRICULA: { x: 120, y: 295 },
+      ORGAO: { x: 370, y: 295 },
+      CARGO: { x: 138, y: 270 },
+      ADMISSAO: { x: 480, y: 270 },
+      PIS: { x: 120, y: 244 },
+      EMAIL: { x: 110, y: 218 },
+      DATA: { x: 360, y: 193 },
+      SIGN: { x: 92, y: 130 },
+    },
   },
   vitalmed: {
     label: 'Assistência Familiar (Vitalmed)',
     file: path.join(__dirname, 'public', 'TERMO_ADESAO_VITALMED.pdf'),
     positions: {
-      NOME: { x: 100, y: 640 },
-      RG: { x: 350, y: 640 },
-      CPF: { x: 100, y: 620 },
-      // Campos para familiares
-      FAMILIAR1_NOME: { x: 100, y: 500 },
-      FAMILIAR1_CPF: { x: 300, y: 500 },
-      FAMILIAR1_RG: { x: 450, y: 500 },
-      FAMILIAR1_NASCIMENTO: { x: 100, y: 480 },
-      FAMILIAR1_PARENTESCO: { x: 300, y: 480 },
-
-      FAMILIAR2_NOME: { x: 100, y: 450 },
-      FAMILIAR2_CPF: { x: 300, y: 450 },
-      FAMILIAR2_RG: { x: 450, y: 450 },
-      FAMILIAR2_NASCIMENTO: { x: 100, y: 430 },
-      FAMILIAR2_PARENTESCO: { x: 300, y: 430 },
-
-      FAMILIAR3_NOME: { x: 100, y: 400 },
-      FAMILIAR3_CPF: { x: 300, y: 400 },
-      FAMILIAR3_RG: { x: 450, y: 400 },
-      FAMILIAR3_NASCIMENTO: { x: 100, y: 380 },
-      FAMILIAR3_PARENTESCO: { x: 300, y: 380 },
-
-      SIGN: { x: 100, y: 160 }
-    }
+      NOME: { x: 100, y: 262 },
+      NASCIMENTO: { x: 115, y: 242 },
+      CPF: { x: 100, y: 212 },
+      RG: { x: 350, y: 212 },
+      RUA: { x: 174, y: 183 },
+      NUMERO: { x: 400, y: 183 },
+      COMPLEMENTO: { x: 130, y: 164 },
+      BAIRRO: { x: 350, y: 164 },
+      CEP: { x: 90, y: 145 },
+      TELEFONE1: { x: 280, y: 145 },
+      TELEFONE2: { x: 444, y: 145 },
+      CIDADE: { x: 160, y: 125 },
+      TELEFONE3: { x: 405, y: 125 },
+      MATRICULA: { x: 170, y: 105 },
+      FAMILIAR1_NOME: { x: 70, y: 685, page: 1 },
+      FAMILIAR1_NASCIMENTO: { x: 315, y: 685, page: 1 },
+      FAMILIAR1_CPF: { x: 435, y: 685, page: 1 },
+      FAMILIAR2_NOME: { x: 70, y: 672, page: 1 },
+      FAMILIAR2_NASCIMENTO: { x: 315, y: 672, page: 1 },
+      FAMILIAR2_CPF: { x: 435, y: 672, page: 1 },
+      FAMILIAR3_NOME: { x: 70, y: 660, page: 1 },
+      FAMILIAR3_NASCIMENTO: { x: 315, y: 660, page: 1 },
+      FAMILIAR3_CPF: { x: 435, y: 660, page: 1 },
+      FAMILIAR4_NOME: { x: 70, y: 646, page: 1 },
+      FAMILIAR4_NASCIMENTO: { x: 315, y: 646, page: 1 },
+      FAMILIAR4_CPF: { x: 435, y: 646, page: 1 },
+      FAMILIAR5_NOME: { x: 70, y: 633, page: 1 },
+      FAMILIAR5_NASCIMENTO: { x: 315, y: 633, page: 1 },
+      FAMILIAR5_CPF: { x: 435, y: 633, page: 1 },
+      FAMILIAR6_NOME: { x: 70, y: 622, page: 1 },
+      FAMILIAR6_NASCIMENTO: { x: 315, y: 622, page: 1 },
+      FAMILIAR6_CPF: { x: 435, y: 622, page: 1 },
+      DATA: { x: 70, y: 290, page: 1 },
+      SIGN: { x: 70, y: 200, page: 1 },
+    },
   }
 };
 
-// Rota para processar o formulário, gerar PDFs e enviar emails
-app.post('/generate-pdfs', upload.none(), async (req, res) => {
+export const defaultScale = 1.05;
+
+// -----------------------------------------------------------------------------
+// Utilitário de data ----------------------------------------------------------
+export const getCurrentDate = () => {
+  const t = new Date();
+  return t.toLocaleDateString('pt-BR');
+};
+
+// -----------------------------------------------------------------------------
+// Rotas simples ----------------------------------------------------------------
+app.get('/api/check-status', (_, res) =>
+  res.status(200).json({ status: 'online', timestamp: new Date().toISOString() })
+);
+// -----------------------------------------------------------------------------
+// Pré-validação do formulário --------------------------------------------------
+app.post('/api/pre-process-check', (req, res) => {
   try {
-    const { formData, signatureData, contratos } = req.body;
-    const contratosArray = contratos.split(',');
+    const { contratos, formData } = req.body;
 
-    // Converter a imagem da assinatura de base64 para buffer
-    const signatureBase64 = signatureData.replace(/^data:image\/png;base64,/, '');
-    const signatureBuffer = Buffer.from(signatureBase64, 'base64');
+    const lista = Array.isArray(contratos) ? contratos : contratos.split(',');
+    const invalidos = lista.filter(id => !CONTRACT_FILES[id]);
 
-    // Array para armazenar os caminhos dos PDFs gerados
-    const generatedPDFs = [];
-
-    // Gerar PDFs para cada contrato selecionado
-    for (const id of contratosArray) {
-      if (!CONTRACT_FILES[id]) continue;
-
-      const { file, positions, label } = CONTRACT_FILES[id];
-
-      // Carregar o PDF modelo
-      const existingBytes = fs.readFileSync(file);
-      const pdfDoc = await PDFDocument.load(existingBytes);
-      const pages = pdfDoc.getPages();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const fontSize = 10;
-
-      // Preencher campos de texto
-      for (const [key, value] of Object.entries(formData)) {
-        const pos = positions[key];
-        if (!pos) continue;
-
-        const posArray = Array.isArray(pos) ? pos : [pos];
-        posArray.forEach(p => {
-          if (value) {
-            const pageIndex = p.page || 0;
-            if (pageIndex < pages.length) {
-              pages[pageIndex].drawText(String(value), {
-                x: p.x,
-                y: p.y,
-                size: fontSize,
-                font
-              });
-            }
-          }
-        });
-      }
-
-      // Adicionar assinatura se houver posição para ela
-      if (positions.SIGN) {
-        const pngImg = await pdfDoc.embedPng(signatureBuffer);
-        const sigW = 120;
-        const sigH = (pngImg.height / pngImg.width) * sigW;
-
-        const signPage = positions.SIGN.page || 0;
-        if (signPage < pages.length) {
-          pages[signPage].drawImage(pngImg, {
-            x: positions.SIGN.x,
-            y: positions.SIGN.y,
-            width: sigW,
-            height: sigH
-          });
-        }
-      }
-
-      // Salvar o PDF gerado
-      const pdfBytes = await pdfDoc.save();
-      const outputPath = path.join(tempDir, `Contrato_${id}_Preenchido.pdf`);
-      fs.writeFileSync(outputPath, pdfBytes);
-
-      generatedPDFs.push({
-        path: outputPath,
-        filename: `Contrato_${id}_Preenchido.pdf`,
-        label: label
+    if (invalidos.length)
+      return res.status(400).json({
+        success: false,
+        message: `Contratos inválidos: ${invalidos.join(', ')}`
       });
-    }
 
-    // Enviar email com os PDFs em anexo
-    if (generatedPDFs.length > 0) {
-      await sendEmailWithAttachments(formData.EMAIL, generatedPDFs, formData.NOME);
-    }
-
-    // Resposta para o cliente
-    res.json({
-      success: true,
-      message: `${generatedPDFs.length} PDFs foram gerados e enviados por email.`
-    });
-
-    // Limpar arquivos temporários após alguns segundos
-    setTimeout(() => {
-      generatedPDFs.forEach(pdf => {
-        fs.unlink(pdf.path, err => {
-          if (err) console.error(`Erro ao excluir arquivo temporário: ${err}`);
-        });
-      });
-    }, 60000); // Remove após 1 minuto
-
-  } catch (error) {
-    console.error('Erro ao processar o formulário:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Ocorreu um erro ao processar o formulário',
-      error: error.message
-    });
+    // (aqui você pode fazer outras validações nos campos)
+    res.json({ success: true, contratos: lista });
+  } catch (e) {
+    console.error('Erro na pré-validação', e);
+    res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// Função para enviar email com anexos
-async function sendEmailWithAttachments(recipientEmail, attachments, nomeAssociado) {
-  const attachmentsConfig = attachments.map(attachment => ({
-    filename: attachment.filename,
-    path: attachment.path
-  }));
 
-  const contractNames = attachments.map(a => a.label).join(', ');
+// -----------------------------------------------------------------------------
+// Sua rota principal para gerar PDFs ------------------------------------------
+app.post('/generate-pdfs', async (req, res) => {
+  try {
+    const { formData, signatureData, contratos } = req.body;
+    const contratosArray = contratos.split(',');
+    const signatureBuffer = Buffer.from(
+      signatureData.replace(/^data:image\/png;base64,/, ''), 'base64'
+    );
 
-  // Email para o associado
+    const generatedPDFs = [];
+
+    for (const id of contratosArray) {
+      const contrato = CONTRACT_FILES[id];
+      if (!contrato) continue;
+
+      const { file, positions, label } = contrato;
+
+      const pdfDoc = await PDFDocument.load(fs.readFileSync(file));
+      const pages = pdfDoc.getPages();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      Object.entries(formData).forEach(([chave, valor]) => {
+        const pos = positions[chave];
+        if (!valor || !pos) return;
+        (Array.isArray(pos) ? pos : [pos]).forEach(p => {
+          const idx = p.page ?? 0;
+          if (idx < pages.length)
+            pages[idx].drawText(String(valor), { x: p.x, y: p.y, size: 10, font: helv });
+        });
+      });
+
+      if (positions.SIGN) {
+        const img = await pdfDoc.embedPng(signatureBuffer);
+        const w = 120;
+        const h = (img.height / img.width) * w;
+        const s = positions.SIGN;
+        const idx = s.page ?? 0;
+        if (idx < pages.length)
+          pages[idx].drawImage(img, { x: s.x, y: s.y, width: w, height: h });
+      }
+
+      const output = path.join(tempDir, `Contrato_${id}_Preenchido.pdf`);
+      fs.writeFileSync(output, await pdfDoc.save());
+
+      generatedPDFs.push({ path: output, filename: path.basename(output), label });
+    }
+
+    if (!generatedPDFs.length)
+      return res.status(400).json({ success: false, message: 'Nenhum PDF gerado' });
+
+    await sendEmailWithAttachments(formData.EMAIL, generatedPDFs, formData.NOME);
+
+    res.json({ success: true, message: `${generatedPDFs.length} PDFs enviados` });
+
+    // limpeza assíncrona
+    setTimeout(() => {
+      generatedPDFs.forEach(f => fs.unlink(f.path, () => { }));
+    }, 60_000);
+
+  } catch (err) {
+    console.error('Erro em /generate-pdfs', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// E‑mail helper ----------------------------------------------------------------
+async function sendEmailWithAttachments(destino, anexos, nome) {
+  const cfg = anexos.map(a => ({ filename: a.filename, path: a.path }));
   await transporter.sendMail({
-    from: '"AMPARE Associação" <seu-email@gmail.com>',
-    to: recipientEmail,
-    cc: 'dionatha.work@gmail.com',
-    subject: 'Seus contratos da AMPARE',
-    html: `
-      <h2>Olá ${nomeAssociado},</h2>
-      <p>Agradecemos por escolher a AMPARE! Seus contratos estão anexados a este email:</p>
-      <ul>
-        ${attachments.map(a => `<li>${a.label}</li>`).join('')}
-      </ul>
-      <p>Em caso de dúvidas, entre em contato conosco.</p>
-      <p>Atenciosamente,<br>Equipe AMPARE</p>
-    `,
-    attachments: attachmentsConfig
+    from: 'AMPARE <' + process.env.GMAIL_USER + '>',
+    to: destino,
+    cc: process.env.GMAIL_USER,
+    subject: 'Seus contratos AMPARE',
+    html: `<h2>Olá ${nome}</h2><p>Seguem anexos.</p>`,
+    attachments: cfg,
   });
-
-  console.log(`Email enviado para ${recipientEmail} e dionatha.work@gmail.com com ${attachments.length} anexos`);
 }
 
-// Iniciar o servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+// Rota para servir os arquivos PDF
+app.get('/api/pdf/:filename', (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(__dirname, 'public', `${filename}`);
+  res.sendFile(filePath);
 });
+
+
+// -----------------------------------------------------------------------------
+// Start ------------------------------------------------------------------------
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));

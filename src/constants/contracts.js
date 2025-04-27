@@ -1,0 +1,117 @@
+// constants/contracts.js
+export const API_BASE_URL = "http://localhost:3000"; // Substitua pelo endereço real do seu backend
+
+export const CONTRACT_FILES = {
+  saude: {
+    label: 'Seguro-Saúde',
+    file: '/templates/AMPARE_TERMO_ADESAO_SAUDE.pdf',
+    pdfUrl: `${API_BASE_URL}/api/pdf/AMPARE_TERMO_ADESAO_SAUDE.pdf`,
+    positions: {
+      NOME: [{ x: 80, y: 675 }, { x: 92, y: 455 }],
+      RG: { x: 90, y: 660 },
+      CPF: { x: 380, y: 660 },
+      EMPRESA: { x: 475, y: 630 },
+      RUA: { x: 110, y: 430 },
+      NUMERO: { x: 515, y: 430 },
+      COMPLEMENTO: { x: 135, y: 403 },
+      BAIRRO: { x: 95, y: 378 },
+      CIDADE: { x: 298, y: 378 },
+      ESTADO: { x: 440, y: 378 },
+      CEP: { x: 485, y: 378 },
+      TELEFONE1: { x: 115, y: 352 },
+      TELEFONE2: { x: 210, y: 352 },
+      TELEFONE3: { x: 290, y: 352 },
+      NASCIMENTO: { x: 485, y: 352 },
+      MATRICULA: { x: 120, y: 328 },
+      ORGAO: { x: 370, y: 328 },
+      CARGO: { x: 138, y: 303 },
+      ADMISSAO: { x: 480, y: 303 },
+      PIS: { x: 120, y: 277 },
+      EMAIL: { x: 120, y: 253 },
+      DATA: { x: 360, y: 225 },
+      SIGN: { x: 92, y: 150 },
+    },
+  },
+  qualidonto: {
+    label: 'Plano Odontológico',
+    file: '/templates/AMPARE_TERMO_ADESAO_QUALIDONTO.pdf',
+    pdfUrl: `${API_BASE_URL}/api/pdf/AMPARE_TERMO_ADESAO_QUALIDONTO.pdf`,
+    positions: {
+      NOME: [{ x: 80, y: 650 }, { x: 92, y: 420 }],
+      RG: { x: 90, y: 635 },
+      CPF: { x: 380, y: 635 },
+      EMPRESA: { x: 245, y: 605 },
+      RUA: { x: 110, y: 396 },
+      NUMERO: { x: 515, y: 396 },
+      COMPLEMENTO: { x: 140, y: 371 },
+      BAIRRO: { x: 98, y: 345 },
+      CIDADE: { x: 296, y: 345 },
+      ESTADO: { x: 440, y: 345 },
+      CEP: { x: 488, y: 345 },
+      TELEFONE1: { x: 115, y: 320 },
+      TELEFONE2: { x: 210, y: 320 },
+      TELEFONE3: { x: 290, y: 320 },
+      NASCIMENTO: { x: 475, y: 320 },
+      MATRICULA: { x: 120, y: 295 },
+      ORGAO: { x: 370, y: 295 },
+      CARGO: { x: 138, y: 270 },
+      ADMISSAO: { x: 480, y: 270 },
+      PIS: { x: 120, y: 244 },
+      EMAIL: { x: 110, y: 218 },
+      DATA: { x: 360, y: 193 },
+      SIGN: { x: 92, y: 130 },
+    },
+  },
+  vitalmed: {
+    label: 'Assistência Familiar (Vitalmed)',
+    file: '/templates/TERMO_ADESAO_VITALMED.pdf',
+    pdfUrl: `${API_BASE_URL}/api/pdf/TERMO_ADESAO_VITALMED.pdf`,
+    positions: {
+      NOME: { x: 100, y: 262 },
+      NASCIMENTO: { x: 115, y: 242 },
+      CPF: { x: 100, y: 212 },
+      RG: { x: 350, y: 212 },
+      RUA: { x: 174, y: 183 },
+      NUMERO: { x: 400, y: 183 },
+      COMPLEMENTO: { x: 130, y: 164 },
+      BAIRRO: { x: 350, y: 164 },
+      CEP: { x: 90, y: 145 },
+      TELEFONE1: { x: 280, y: 145 },
+      TELEFONE2: { x: 444, y: 145 },
+      CIDADE: { x: 160, y: 125 },
+      TELEFONE3: { x: 405, y: 125 },
+      MATRICULA: { x: 170, y: 105 },
+      FAMILIAR1_NOME: { x: 70, y: 685, page: 1 },
+      FAMILIAR1_NASCIMENTO: { x: 315, y: 685, page: 1 },
+      FAMILIAR1_CPF: { x: 435, y: 685, page: 1 },
+      FAMILIAR2_NOME: { x: 70, y: 672, page: 1 },
+      FAMILIAR2_NASCIMENTO: { x: 315, y: 672, page: 1 },
+      FAMILIAR2_CPF: { x: 435, y: 672, page: 1 },
+      FAMILIAR3_NOME: { x: 70, y: 660, page: 1 },
+      FAMILIAR3_NASCIMENTO: { x: 315, y: 660, page: 1 },
+      FAMILIAR3_CPF: { x: 435, y: 660, page: 1 },
+      FAMILIAR4_NOME: { x: 70, y: 646, page: 1 },
+      FAMILIAR4_NASCIMENTO: { x: 315, y: 646, page: 1 },
+      FAMILIAR4_CPF: { x: 435, y: 646, page: 1 },
+      FAMILIAR5_NOME: { x: 70, y: 633, page: 1 },
+      FAMILIAR5_NASCIMENTO: { x: 315, y: 633, page: 1 },
+      FAMILIAR5_CPF: { x: 435, y: 633, page: 1 },
+      FAMILIAR6_NOME: { x: 70, y: 622, page: 1 },
+      FAMILIAR6_NASCIMENTO: { x: 315, y: 622, page: 1 },
+      FAMILIAR6_CPF: { x: 435, y: 622, page: 1 },
+      DATA: { x: 70, y: 290, page: 1 },
+      SIGN: { x: 70, y: 200, page: 1 },
+    },
+  },
+};
+
+export const defaultScale = 1.05;
+
+// Função para obter a data atual formatada
+export const getCurrentDate = () => {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+  const year = today.getFullYear();
+  return `${day}/${month}/${year}`;
+};
