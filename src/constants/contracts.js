@@ -1,5 +1,5 @@
 // constants/contracts.js
-export const API_BASE_URL = "http://localhost:3000"; // Substitua pelo endereço real do seu backend
+export const API_BASE_URL = "https://pdf-from.onrender.com"; // Substitua pelo endereço real do seu backend
 
 export const CONTRACT_FILES = {
   saude: {
