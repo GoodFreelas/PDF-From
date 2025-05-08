@@ -1,158 +1,162 @@
 import { useEffect } from 'react';
+import IconData from '../icons/IconData'
 
 // Função para obter a data atual formatada
 const getCurrentDate = () => {
   const today = new Date();
   const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+  const month = String(today.getMonth() + 1).padStart(2, '0');
   const year = today.getFullYear();
 
   return `${day}/${month}/${year}`;
 };
 
 export default function StepPersonal({ formData, handleChange, nextStep }) {
-  // Atualizar automaticamente o campo DATA quando o componente for montado
   useEffect(() => {
-    // Cria um evento simulado para atualizar o formData
     const dateEvent = {
       target: {
         name: 'DATA',
-        value: getCurrentDate()
-      }
+        value: getCurrentDate(),
+      },
     };
-    
-    // Chama handleChange apenas se DATA ainda não estiver definida
+
     if (!formData.DATA) {
       handleChange(dateEvent);
     }
   }, []);
 
-  // Função para validar o formulário antes de prosseguir
   const validateAndProceed = (e) => {
     e.preventDefault();
-    
-    // Lista de campos obrigatórios
+
     const requiredFields = ['NOME', 'RG', 'CPF', 'NASCIMENTO', 'EMAIL', 'TELEFONE1'];
-    
-    // Verifica se todos os campos obrigatórios estão preenchidos
-    const missingFields = requiredFields.filter(field => !formData[field]);
-    
+    const missingFields = requiredFields.filter((field) => !formData[field]);
+
     if (missingFields.length > 0) {
       alert(`Por favor, preencha os seguintes campos: ${missingFields.join(', ')}`);
       return;
     }
-    
-    // Se tudo estiver preenchido, avança para a próxima etapa
+
     nextStep();
   };
 
+  const inputStyle =
+    'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[100%] focus:outline-none focus:border-[#00AE71] text-black';
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold mb-4">Dados Pessoais</h2>
-      
-      <div>
-        <label className="block text-sm mb-1">Nome Completo</label>
-        <input
-          name="NOME"
-          type="text"
-          required
-          value={formData.NOME || ''}
-          onChange={handleChange}
-          className="w-full border rounded p-2"
-          placeholder="Digite seu nome completo"
-        />
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm mb-1">RG</label>
-          <input
-            name="RG"
-            type="text"
-            required
-            value={formData.RG || ''}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            placeholder="Digite seu RG"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm mb-1">CPF</label>
-          <input
-            name="CPF"
-            type="text"
-            required
-            value={formData.CPF || ''}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            placeholder="000.000.000-00"
-          />
-        </div>
-      </div>
-      
-      <div>
-        <label className="block text-sm mb-1">Data de Nascimento</label>
-        <input
-          name="NASCIMENTO"
-          type="text"
-          required
-          value={formData.NASCIMENTO || ''}
-          onChange={handleChange}
-          className="w-full border rounded p-2"
-          placeholder="DD/MM/AAAA"
-        />
-      </div>
-      
-      <div>
-        <label className="block text-sm mb-1">Email</label>
-        <input
-          name="EMAIL"
-          type="email"
-          required
-          value={formData.EMAIL || ''}
-          onChange={handleChange}
-          className="w-full border rounded p-2"
-          placeholder="exemplo@email.com"
-        />
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm mb-1">Telefone 1</label>
-          <input
-            name="TELEFONE1"
-            type="tel"
-            required
-            value={formData.TELEFONE1 || ''}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            placeholder="(00) 00000-0000"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm mb-1">Telefone 2</label>
-          <input
-            name="TELEFONE2"
-            type="tel"
-            value={formData.TELEFONE2 || ''}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            placeholder="(00) 00000-0000"
-          />
-        </div>
-      </div>
-      
-      <div className="mt-6">
-        <button
-          type="button"
-          onClick={validateAndProceed}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded py-2"
-        >
-          Próximo
-        </button>
-      </div>
+  {/* Nome */}
+  <div className="w-full max-w-[100%] text-gray-500 focus-within:text-black">
+    <label className="block text-sm mb-1">Nome Completo</label>
+    <input
+      name="NOME"
+      type="text"
+      required
+      value={formData.NOME || ''}
+      onChange={handleChange}
+      className={inputStyle}
+      placeholder="Digite seu nome completo"
+    />
+  </div>
+
+  {/* RG */}
+  <div className="w-full max-w-[100%] text-gray-500 focus-within:text-black">
+    <label className="block text-sm mb-1">RG</label>
+    <input
+      name="RG"
+      type="text"
+      required
+      value={formData.RG || ''}
+      onChange={handleChange}
+      className={inputStyle}
+      placeholder="Digite seu RG"
+    />
+  </div>
+
+  {/* CPF */}
+  <div className="w-full max-w-[100%] text-gray-500 focus-within:text-black">
+    <label className="block text-sm mb-1">CPF</label>
+    <input
+      name="CPF"
+      type="text"
+      required
+      value={formData.CPF || ''}
+      onChange={handleChange}
+      className={inputStyle}
+      placeholder="000.000.000-00"
+    />
+  </div>
+
+  {/* Nascimento */}
+  <div className="w-full max-w-[100%] text-gray-500 focus-within:text-black">
+  <label className="block text-sm mb-1">Data de Nascimento</label>
+  <div className="relative">
+    <input
+      name="NASCIMENTO"
+      type="text"
+      required
+      value={formData.NASCIMENTO || ''}
+      onChange={handleChange}
+      className={`${inputStyle} pr-10`}
+      placeholder="DD/MM/AAAA"
+    />
+    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+      <IconData className="w-5 h-5" />
     </div>
+  </div>
+</div>
+
+  {/* Email */}
+  <div className="w-full max-w-[100%] text-gray-500 focus-within:text-black">
+    <label className="block text-sm mb-1">Email</label>
+    <input
+      name="EMAIL"
+      type="email"
+      required
+      value={formData.EMAIL || ''}
+      onChange={handleChange}
+      className={inputStyle}
+      placeholder="exemplo@email.com"
+    />
+  </div>
+
+  {/* Telefones */}
+  <div className="grid grid-cols-2 gap-4">
+    <div className="text-gray-500 focus-within:text-black">
+      <label className="block text-sm mb-1">Telefone 1</label>
+      <input
+        name="TELEFONE1"
+        type="tel"
+        required
+        value={formData.TELEFONE1 || ''}
+        onChange={handleChange}
+        className={inputStyle}
+        placeholder="(00) 00000-0000"
+      />
+    </div>
+
+    <div className="text-gray-500 focus-within:text-black">
+      <label className="block text-sm mb-1">Telefone 2</label>
+      <input
+        name="TELEFONE2"
+        type="tel"
+        value={formData.TELEFONE2 || ''}
+        onChange={handleChange}
+        className={inputStyle}
+        placeholder="(00) 00000-0000"
+      />
+    </div>
+  </div>
+
+  {/* Botão */}
+  <div className="mt-6 flex justify-end">
+    <button
+      type="button"
+      onClick={validateAndProceed}
+      className="bg-[#00AE71] hover:bg-green-700 text-white rounded-[10px] px-6 py-2 font-semibold"
+    >
+      Avançar
+    </button>
+  </div>
+</div>
   );
 }
