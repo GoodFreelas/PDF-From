@@ -1,28 +1,25 @@
 export default function StepProfessional({ formData, handleChange, nextStep, prevStep }) {
-  // Função para validar o formulário antes de prosseguir
+  const inputStyle =
+    'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-gray-500';
+
   const validateAndProceed = (e) => {
     e.preventDefault();
-    
-    // Lista de campos obrigatórios
+
     const requiredFields = ['EMPRESA', 'MATRICULA', 'ORGAO', 'CARGO', 'PIS', 'ADMISSAO'];
-    
-    // Verifica se todos os campos obrigatórios estão preenchidos
     const missingFields = requiredFields.filter(field => !formData[field]);
-    
+
     if (missingFields.length > 0) {
       alert(`Por favor, preencha os seguintes campos: ${missingFields.join(', ')}`);
       return;
     }
-    
-    // Se tudo estiver preenchido, avança para a próxima etapa
+
     nextStep();
   };
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold mb-4">Dados Profissionais</h2>
-      
-      <div>
+
+      <div className="text-gray-500 focus-within:text-black">
         <label className="block text-sm mb-1">Empresa</label>
         <input
           name="EMPRESA"
@@ -30,12 +27,12 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           required
           value={formData.EMPRESA || ''}
           onChange={handleChange}
-          className="w-full border rounded p-2"
+          className={inputStyle}
           placeholder="Nome da empresa"
         />
       </div>
-      
-      <div>
+
+      <div className="text-gray-500 focus-within:text-black">
         <label className="block text-sm mb-1">Matrícula</label>
         <input
           name="MATRICULA"
@@ -43,12 +40,12 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           required
           value={formData.MATRICULA || ''}
           onChange={handleChange}
-          className="w-full border rounded p-2"
+          className={inputStyle}
           placeholder="Número de matrícula"
         />
       </div>
-      
-      <div>
+
+      <div className="text-gray-500 focus-within:text-black">
         <label className="block text-sm mb-1">Órgão</label>
         <input
           name="ORGAO"
@@ -56,12 +53,12 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           required
           value={formData.ORGAO || ''}
           onChange={handleChange}
-          className="w-full border rounded p-2"
+          className={inputStyle}
           placeholder="Nome do órgão"
         />
       </div>
-      
-      <div>
+
+      <div className="text-gray-500 focus-within:text-black">
         <label className="block text-sm mb-1">Cargo</label>
         <input
           name="CARGO"
@@ -69,12 +66,12 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           required
           value={formData.CARGO || ''}
           onChange={handleChange}
-          className="w-full border rounded p-2"
+          className={inputStyle}
           placeholder="Cargo atual"
         />
       </div>
-      
-      <div>
+
+      <div className="text-gray-500 focus-within:text-black">
         <label className="block text-sm mb-1">PIS</label>
         <input
           name="PIS"
@@ -82,12 +79,12 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           required
           value={formData.PIS || ''}
           onChange={handleChange}
-          className="w-full border rounded p-2"
+          className={inputStyle}
           placeholder="000.00000.00-0"
         />
       </div>
-      
-      <div>
+
+      <div className="text-gray-500 focus-within:text-black">
         <label className="block text-sm mb-1">Data de Admissão</label>
         <input
           name="ADMISSAO"
@@ -95,26 +92,26 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           required
           value={formData.ADMISSAO || ''}
           onChange={handleChange}
-          className="w-full border rounded p-2"
+          className={inputStyle}
           placeholder="DD/MM/AAAA"
         />
       </div>
-      
-      <div className="mt-6 grid grid-cols-2 gap-4">
+
+      <div className="mt-6 flex justify-between">
         <button
           type="button"
           onClick={prevStep}
-          className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 rounded py-2"
+          className="bg-transparent border border-[#00AE71] hover:bg-gray-100 text-[#00AE71] rounded-[10px] px-6 py-2 font-semibold"
         >
           Voltar
         </button>
-        
+
         <button
           type="button"
           onClick={validateAndProceed}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded py-2"
+          className="bg-[#00AE71] hover:bg-green-700 text-white rounded-[10px] px-6 py-2 font-semibold"
         >
-          Próximo
+          Avançar
         </button>
       </div>
     </div>

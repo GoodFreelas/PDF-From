@@ -27,7 +27,7 @@ const SignatureCanvas = forwardRef((props, ref) => {
   }));
   
   return (
-    <div className="border rounded bg-white">
+    <div className=" bg-transparent">
       <canvas 
         ref={canvasRef} 
         {...props} 

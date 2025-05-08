@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
 import StepPersonal from './components/steps/StepPersonal';
 import StepAddress from './components/steps/StepAddress';
 import StepProfessional from './components/steps/StepProfissional';
 import StepPlans from './components/steps/StepPlans';
 import SuccessMessage from './components/SuccessMessage';
-// Removida a importação de generatePdf, pois será feito no backend
-// import { generatePdf } from './utils/pdfUtils';
+import IconAddress from './components/icons/IconAddress'
+import IconPersonal from './components/icons/IconPersonal'
+import IconPlans from './components/icons/IconPlans'
+import IconProfessional from './components/icons/IconProfessional'
+import IconSeparador from './components/icons/IconSeparador'
+
 
 // URL base da API
 const API_BASE_URL = 'http://localhost:3000';
@@ -129,50 +132,64 @@ export default function App() {
   return (
     <div className="flex min-h-screen">
       {/* Lado esquerdo - Imagem */}
-      <div className="hidden md:block md:w-1/2 bg-blue-600">
-        <div className="h-full flex items-center justify-center">
+      <div className="hidden md:block md:w-1/2 bg-[#00AE71]">
+        <div className="h-screen w-full">
           <img 
-            src="/logo-ampare.png" 
+            src="/bg.png" 
             alt="AMPARE" 
-            className="max-w-xs mx-auto"
+            className="w-full h-full object-cover" 
           />
         </div>
-      </div>
+    </div>
       
       {/* Lado direito - Formulário */}
       <div className="w-full md:w-1/2 p-6">
         <div className="max-w-xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-blue-800">AMPARE - Gerador de Contratos</h1>
-            <div className="flex mt-4">
-              {[1, 2, 3, 4].map((step) => (
-                <div 
-                  key={step} 
-                  className={`w-1/4 text-center ${currentStep >= step ? 'text-blue-600' : 'text-gray-400'}`}
-                >
-                  <div 
-                    className={`h-8 w-8 mx-auto rounded-full flex items-center justify-center text-white ${
-                      currentStep === step 
-                        ? 'bg-blue-600 border-blue-600' 
-                        : currentStep > step 
-                          ? 'bg-green-500 border-green-500' 
-                          : 'bg-gray-300 border-gray-300'
-                    }`}
+          <h1 className="font-roboto font-bold text-[40px] leading-[100%] tracking-[0%] text-black mb-5">
+            Adesão a benefícios
+          </h1>
+          <div className="flex mt-4 gap-[7px] items-center flex-wrap">
+            {[1, 2, 3, 4].map((step, index, arr) => {
+              const isActive = currentStep === step;
+              const isCompleted = currentStep > step;
+
+              const stepLabels = ['Pessoal', 'Endereço', 'Profissional', 'Planos'];
+              const stepIcons = [
+                <IconPersonal className="w-4 h-4 mr-1" />,
+                <IconAddress className="w-4 h-4 mr-1" />,
+                <IconProfessional className="w-4 h-4 mr-1" />,
+                <IconPlans className="w-4 h-4 mr-1" />
+              ];
+
+              return (
+                <div key={step} className="flex items-center">
+                  {/* Bloco do step */}
+                  <div
+                    className={`flex items-center justify-center w-[110px] h-[40px] px-[15px] py-[10px] rounded-full border
+                      ${isActive || isCompleted ? 'bg-[rgba(0,174,113,0.05)] border-[#00AE71] text-[#00AE71]' : 'bg-transparent border-gray-500 text-gray-500'}
+                      ${isCompleted && !isActive ? 'opacity-50' : ''}
+                    `}
                   >
-                    {currentStep > step ? '✓' : step}
+                    {stepIcons[step - 1]}
+                    <span className="text-sm font-medium">
+                      {stepLabels[step - 1]}
+                    </span>
                   </div>
-                  <div className="text-xs mt-1">
-                    {step === 1 && 'Pessoal'}
-                    {step === 2 && 'Endereço'}
-                    {step === 3 && 'Profissional'}
-                    {step === 4 && 'Planos'}
-                  </div>
+          
+                  {/* Seta entre os steps */}
+                  {index < arr.length - 1 && (
+                    <div className={`mx-3 ${currentStep > step ? 'text-[rgba(0,174,113,0.6)]' : 'text-gray-400'}`}>
+                      <IconSeparador />
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
           </div>
           
-          <form onSubmit={handleSubmit} className="bg-white border rounded shadow p-6">
+          <form onSubmit={handleSubmit}>
             {currentStep === 1 && (
               <StepPersonal 
                 formData={formData} 
