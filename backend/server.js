@@ -25,11 +25,12 @@ const PORT = process.env.PORT || 3000;
 
 /* ────────────────────────────── CORS ────────────────────────────────────*/
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5500',
-  'https://meusite.com',
-  'https://pdf-from.vercel.app'
+  'http://localhost:3000',
+  'http://localhost:5173', // Vite padrão
+  'http://127.0.0.1:5173',
+  'http://localhost:5500'  // Live Server
 ];
+
 
 app.use(
   cors({
@@ -59,6 +60,9 @@ app.use(
   express.static(path.join(__dirname, 'public'))
 );
 
+// Servir PDFs também na raiz para compatibilidade
+app.use('/', express.static(path.join(__dirname, 'public')));
+
 /* ─────────────────────────── Nodemailer ──────────────────────────────── */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -73,11 +77,10 @@ const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
 /* ───────────────────── mapas de contratos (PDFs) ─────────────────────── */
-/* (mantenha exatamente como já estava; inclui aqui por completo) */
 export const CONTRACT_FILES = {
   saude: {
     label: 'Seguro-Saúde',
-    file: path.join(__dirname, 'public', 'AMPARE_TERMO_ADESAO_SAUDE.pdf'),
+    file: path.join(__dirname, 'public', 'contrato-blue-saude.pdf'),
     positions: {
       NOME: [{ x: 80, y: 675 }, { x: 92, y: 455 }],
       RG: { x: 90, y: 660 },
@@ -106,7 +109,7 @@ export const CONTRACT_FILES = {
   },
   qualidonto: {
     label: 'Plano Odontológico',
-    file: path.join(__dirname, 'public', 'AMPARE_TERMO_ADESAO_QUALIDONTO.pdf'),
+    file: path.join(__dirname, 'public', 'contrato-qualidonto.pdf'),
     positions: {
       NOME: [{ x: 80, y: 650 }, { x: 92, y: 420 }],
       RG: { x: 90, y: 635 },
@@ -135,7 +138,7 @@ export const CONTRACT_FILES = {
   },
   vitalmed: {
     label: 'Assistência Familiar (Vitalmed)',
-    file: path.join(__dirname, 'public', 'TERMO_ADESAO_VITALMED.pdf'),
+    file: path.join(__dirname, 'public', 'contrato-vitalmed.pdf'),
     positions: {
       NOME: { x: 100, y: 262 },
       NASCIMENTO: { x: 115, y: 242 },
@@ -212,6 +215,7 @@ app.post('/generate-pdfs', async (req, res) => {
     );
 
     const generated = [];
+    const pdfBuffers = {}; // Para armazenar os buffers dos PDFs gerados
 
     for (const id of contratosArray) {
       const contrato = CONTRACT_FILES[id];
@@ -219,11 +223,26 @@ app.post('/generate-pdfs', async (req, res) => {
 
       const { file, positions, label } = contrato;
 
+      // Lê o arquivo PDF do template
       const pdfDoc = await PDFDocument.load(fs.readFileSync(file));
       const pages = pdfDoc.getPages();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-      // escreve texto
+      // Processa campos de dependentes se existirem no formData
+      if (id === 'vitalmed' && formData.dependents) {
+        formData.dependents.forEach((dependent, index) => {
+          // Apenas processa até 6 dependentes (limite do formulário)
+          if (index < 6) {
+            // Mapeia os campos do dependente para o formato esperado pelo preenchimento
+            const depNum = index + 1;
+            formData[`FAMILIAR${depNum}_NOME`] = dependent.NOME || '';
+            formData[`FAMILIAR${depNum}_CPF`] = dependent.CPF || '';
+            formData[`FAMILIAR${depNum}_NASCIMENTO`] = dependent.NASCIMENTO || '';
+          }
+        });
+      }
+
+      // Preenche texto nos campos do PDF
       Object.entries(formData).forEach(([k, v]) => {
         const pos = positions[k];
         if (!v || !pos) return;
@@ -234,7 +253,7 @@ app.post('/generate-pdfs', async (req, res) => {
         });
       });
 
-      // assina
+      // Adiciona a assinatura
       if (positions.SIGN) {
         const img = await pdfDoc.embedPng(signatureBuffer);
         const w = 120;
@@ -245,18 +264,41 @@ app.post('/generate-pdfs', async (req, res) => {
           pages[idx].drawImage(img, { x: p.x, y: p.y, width: w, height: h });
       }
 
-      const output = path.join(tempDir, `Contrato_${id}_Preenchido.pdf`);
-      fs.writeFileSync(output, await pdfDoc.save());
-      generated.push({ path: output, filename: path.basename(output), label });
+      // Salva o PDF em bytes
+      const pdfBytes = await pdfDoc.save();
+
+      // Nome do arquivo para download e email
+      const filename = `${label.replace(/\s+/g, '_')}-${formData.NOME || 'Contrato'}.pdf`;
+
+      // Salva temporariamente no servidor para anexar ao email
+      const output = path.join(tempDir, filename);
+      fs.writeFileSync(output, pdfBytes);
+
+      // Adiciona à lista de PDFs gerados para email
+      generated.push({
+        path: output,
+        filename,
+        label
+      });
+
+      // Armazena o buffer como base64 para enviar ao cliente para download
+      pdfBuffers[filename] = Buffer.from(pdfBytes).toString('base64');
     }
 
     if (!generated.length)
       return res.status(400).json({ success: false, message: 'Nenhum PDF gerado' });
 
+    // Envia os PDFs por email
     await sendEmailWithAttachments(formData.EMAIL, generated, formData.NOME);
-    res.json({ success: true, message: `${generated.length} PDFs enviados` });
 
-    // limpa em 1 min
+    // Responde com sucesso e envia os PDFs gerados para download automático no frontend
+    res.json({
+      success: true,
+      message: `${generated.length} PDFs enviados para ${formData.EMAIL}`,
+      pdfs: pdfBuffers
+    });
+
+    // Limpa arquivos temporários depois de 1 minuto
     setTimeout(() => generated.forEach(f => fs.unlink(f.path, () => { })), 60_000);
   } catch (err) {
     console.error('Erro em /generate-pdfs', err);
@@ -271,12 +313,16 @@ async function sendEmailWithAttachments(destino, anexos, nome) {
     to: destino,
     cc: process.env.GMAIL_USER,
     subject: 'Seus contratos AMPARE',
-    html: `<h2>Olá ${nome}</h2><p>Seguem anexos.</p>`,
+    html: `<h2>Olá ${nome}</h2><p>Seguem anexos os contratos solicitados.</p>`,
     attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
   });
 }
 
 /* ───────────────────────────── start! ─────────────────────────────────── */
-app.listen(PORT, () =>
-  console.log(`✅  Servidor rodando em http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`✅  Servidor rodando em http://localhost:${PORT}`);
+  console.log(`✅  PDFs disponíveis em:`);
+  console.log(`   - http://localhost:${PORT}/contrato-blue-saude.pdf`);
+  console.log(`   - http://localhost:${PORT}/contrato-qualidonto.pdf`);
+  console.log(`   - http://localhost:${PORT}/contrato-vitalmed.pdf`);
+});

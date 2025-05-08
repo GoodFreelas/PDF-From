@@ -1,18 +1,11 @@
-// Define a escala padrão para visualização de PDF
-export const defaultScale = 1.2;
+// constants/contracts.js
+export const API_BASE_URL = "https://pdf-from.onrender.com"; // Substitua pelo endereço real do seu backend
 
-// URLs de base para os PDFs - configurado para backend local
-const BASE_URL_API = 'http://localhost:3000';
-
-// Nome correto dos arquivos na pasta public do backend
 export const CONTRACT_FILES = {
-  // Contrato Blue Saúde
   saude: {
-    label: 'Blue Saúde',
-    // URLs para o arquivo PDF do contrato (usando os nomes corretos)
-    file: `${BASE_URL_API}/contrato-blue-saude.pdf`,
-    pdfUrl: `${BASE_URL_API}/contrato-blue-saude.pdf`,
-    // Posições dos campos no PDF
+    label: 'Seguro-Saúde',
+    file: '/templates/AMPARE_TERMO_ADESAO_SAUDE.pdf',
+    pdfUrl: `${API_BASE_URL}/api/pdf/AMPARE_TERMO_ADESAO_SAUDE.pdf`,
     positions: {
       NOME: [{ x: 80, y: 675 }, { x: 92, y: 455 }],
       RG: { x: 90, y: 660 },
@@ -36,15 +29,13 @@ export const CONTRACT_FILES = {
       PIS: { x: 120, y: 277 },
       EMAIL: { x: 120, y: 253 },
       DATA: { x: 360, y: 225 },
-      SIGN: { x: 92, y: 150 }
-    }
+      SIGN: { x: 92, y: 150 },
+    },
   },
-
-  // Contrato Qualidonto
   qualidonto: {
-    label: 'Qualidonto',
-    file: `${BASE_URL_API}/contrato-qualidonto.pdf`,
-    pdfUrl: `${BASE_URL_API}/contrato-qualidonto.pdf`,
+    label: 'Plano Odontológico',
+    file: '/templates/AMPARE_TERMO_ADESAO_QUALIDONTO.pdf',
+    pdfUrl: `${API_BASE_URL}/api/pdf/AMPARE_TERMO_ADESAO_QUALIDONTO.pdf`,
     positions: {
       NOME: [{ x: 80, y: 650 }, { x: 92, y: 420 }],
       RG: { x: 90, y: 635 },
@@ -68,15 +59,13 @@ export const CONTRACT_FILES = {
       PIS: { x: 120, y: 244 },
       EMAIL: { x: 110, y: 218 },
       DATA: { x: 360, y: 193 },
-      SIGN: { x: 92, y: 130 }
-    }
+      SIGN: { x: 92, y: 130 },
+    },
   },
-
-  // Contrato Vitalmed
   vitalmed: {
-    label: 'Vitalmed',
-    file: `${BASE_URL_API}/contrato-vitalmed.pdf`,
-    pdfUrl: `${BASE_URL_API}/contrato-vitalmed.pdf`,
+    label: 'Assistência Familiar (Vitalmed)',
+    file: '/templates/TERMO_ADESAO_VITALMED.pdf',
+    pdfUrl: `${API_BASE_URL}/api/pdf/TERMO_ADESAO_VITALMED.pdf`,
     positions: {
       NOME: { x: 100, y: 262 },
       NASCIMENTO: { x: 115, y: 242 },
@@ -111,7 +100,18 @@ export const CONTRACT_FILES = {
       FAMILIAR6_NASCIMENTO: { x: 315, y: 622, page: 1 },
       FAMILIAR6_CPF: { x: 435, y: 622, page: 1 },
       DATA: { x: 70, y: 290, page: 1 },
-      SIGN: { x: 70, y: 200, page: 1 }
-    }
-  }
+      SIGN: { x: 70, y: 200, page: 1 },
+    },
+  },
+};
+
+export const defaultScale = 1.05;
+
+// Função para obter a data atual formatada
+export const getCurrentDate = () => {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+  const year = today.getFullYear();
+  return `${day}/${month}/${year}`;
 };
