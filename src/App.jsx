@@ -1,15 +1,15 @@
 import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion'; // Importar Framer Motion
 import StepPersonal from './components/steps/StepPersonal';
 import StepAddress from './components/steps/StepAddress';
 import StepProfessional from './components/steps/StepProfissional';
 import StepPlans from './components/steps/StepPlans';
 import SuccessMessage from './components/SuccessMessage';
-import IconAddress from './components/icons/IconAddress'
-import IconPersonal from './components/icons/IconPersonal'
-import IconPlans from './components/icons/IconPlans'
-import IconProfessional from './components/icons/IconProfessional'
-import IconSeparador from './components/icons/IconSeparador'
-
+import IconAddress from './components/icons/IconAddress';
+import IconPersonal from './components/icons/IconPersonal';
+import IconPlans from './components/icons/IconPlans';
+import IconProfessional from './components/icons/IconProfessional';
+import IconSeparador from './components/icons/IconSeparador';
 
 // URL base da API
 const API_BASE_URL = 'http://localhost:3000';
@@ -19,6 +19,7 @@ export default function App() {
   const [formData, setFormData] = useState({});
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
+  const [direction, setDirection] = useState(1); // 1 para frente, -1 para trás
   const sigRef = useRef(null);
 
   // Função para atualizar os dados do formulário
@@ -34,11 +35,13 @@ export default function App() {
 
   // Função para avançar para a próxima etapa
   const nextStep = () => {
+    setDirection(1); // Definir direção para frente
     setCurrentStep(prev => Math.min(prev + 1, 4));
   };
 
   // Função para voltar para a etapa anterior
   const prevStep = () => {
+    setDirection(-1); // Definir direção para trás
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
@@ -124,6 +127,30 @@ export default function App() {
     }
   };
 
+  // Variantes de animação
+  const pageVariants = {
+    initial: (direction) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0
+    }),
+    animate: {
+      x: 0,
+      opacity: 1,
+      transition: {
+        x: { type: 'spring', stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 }
+      }
+    },
+    exit: (direction) => ({
+      x: direction > 0 ? '-100%' : '100%',
+      opacity: 0,
+      transition: {
+        x: { type: 'spring', stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 }
+      }
+    })
+  };
+
   // Se o processo estiver concluído, exibe a mensagem de sucesso
   if (done) {
     return <SuccessMessage email={formData.EMAIL} />;
@@ -133,99 +160,141 @@ export default function App() {
     <div className="flex min-h-screen">
       {/* Lado esquerdo - Imagem */}
       <div className="hidden md:block fixed top-0 left-0 h-screen w-1/2 bg-[#00AE71] z-10">
-          <img 
-            src="/bg.png" 
-            alt="AMPARE" 
-            className="w-full h-full object-cover" 
-          />
+        <img 
+          src="/bg.png" 
+          alt="AMPARE" 
+          className="w-full h-full object-cover" 
+        />
       </div>
       
       {/* Lado direito - Formulário */}
       <div className="w-full md:w-1/2 md:ml-[50%] p-6">
         <div className="max-w-xl mx-auto">
           <div className="mb-8">
-          <h1 className="font-roboto font-bold text-[40px] leading-[100%] tracking-[0%] text-black mb-5">
-            Adesão a benefícios
-          </h1>
-          <div className="flex mt-4 gap-[7px] items-center flex-wrap">
-            {[1, 2, 3, 4].map((step, index, arr) => {
-              const isActive = currentStep === step;
-              const isCompleted = currentStep > step;
+            <h1 className="font-roboto font-bold text-[40px] leading-[100%] tracking-[0%] text-black mb-5">
+              Adesão a benefícios
+            </h1>
+            <div className="flex mt-4 gap-[7px] items-center flex-wrap">
+              {[1, 2, 3, 4].map((step, index, arr) => {
+                const isActive = currentStep === step;
+                const isCompleted = currentStep > step;
 
-              const stepLabels = ['Pessoal', 'Endereço', 'Profissional', 'Planos'];
-              const stepIcons = [
-                <IconPersonal className="w-4 h-4 mr-1" />,
-                <IconAddress className="w-4 h-4 mr-1" />,
-                <IconProfessional className="w-4 h-4 mr-1" />,
-                <IconPlans className="w-4 h-4 mr-1" />
-              ];
+                const stepLabels = ['Pessoal', 'Endereço', 'Profissional', 'Planos'];
+                const stepIcons = [
+                  <IconPersonal key="personal" className="w-4 h-4 mr-1" />,
+                  <IconAddress key="address" className="w-4 h-4 mr-1" />,
+                  <IconProfessional key="professional" className="w-4 h-4 mr-1" />,
+                  <IconPlans key="plans" className="w-4 h-4 mr-1" />
+                ];
 
-              return (
-                <div key={step} className="flex items-center">
-                  {/* Bloco do step */}
-                  <div
-                    className={`flex items-center justify-center w-[110px] h-[40px] px-[15px] py-[10px] rounded-full border
-                      ${isActive || isCompleted ? 'bg-[rgba(0,174,113,0.05)] border-[#00AE71] text-[#00AE71]' : 'bg-transparent border-gray-500 text-gray-500'}
-                      ${isCompleted && !isActive ? 'opacity-50' : ''}
-                    `}
-                  >
-                    {stepIcons[step - 1]}
-                    <span className="text-sm font-medium">
-                      {stepLabels[step - 1]}
-                    </span>
-                  </div>
-          
-                  {/* Seta entre os steps */}
-                  {index < arr.length - 1 && (
-                    <div className={`mx-3 ${currentStep > step ? 'text-[rgba(0,174,113,0.6)]' : 'text-gray-400'}`}>
-                      <IconSeparador />
+                return (
+                  <div key={step} className="flex items-center">
+                    {/* Bloco do step */}
+                    <div
+                      className={`flex items-center justify-center w-[110px] h-[40px] px-[15px] py-[10px] rounded-full border
+                        ${isActive || isCompleted ? 'bg-[rgba(0,174,113,0.05)] border-[#00AE71] text-[#00AE71]' : 'bg-transparent border-gray-500 text-gray-500'}
+                        ${isCompleted && !isActive ? 'opacity-50' : ''}
+                      `}
+                    >
+                      {stepIcons[step - 1]}
+                      <span className="text-sm font-medium">
+                        {stepLabels[step - 1]}
+                      </span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+            
+                    {/* Seta entre os steps */}
+                    {index < arr.length - 1 && (
+                      <div className={`mx-3 ${currentStep > step ? 'text-[rgba(0,174,113,0.6)]' : 'text-gray-400'}`}>
+                        <IconSeparador />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
           
-          <form onSubmit={handleSubmit}>
-            {currentStep === 1 && (
-              <StepPersonal 
-                formData={formData} 
-                handleChange={handleChange} 
-                nextStep={nextStep} 
-              />
-            )}
-            
-            {currentStep === 2 && (
-              <StepAddress 
-                formData={formData} 
-                handleChange={handleChange} 
-                nextStep={nextStep} 
-                prevStep={prevStep} 
-              />
-            )}
-            
-            {currentStep === 3 && (
-              <StepProfessional 
-                formData={formData} 
-                handleChange={handleChange} 
-                nextStep={nextStep} 
-                prevStep={prevStep} 
-              />
-            )}
-            
-            {currentStep === 4 && (
-              <StepPlans 
-                formData={formData} 
-                handleChange={handleChange} 
-                handlePlansChange={handlePlansChange}
-                handleDependentsChange={handleDependentsChange} 
-                prevStep={prevStep} 
-                handleSubmit={handleSubmit}
-                sigRef={sigRef}
-                processing={processing}
-              />
-            )}
+          <form onSubmit={handleSubmit} className="relative overflow-hidden">
+            <AnimatePresence initial={false} custom={direction} mode="wait">
+              {currentStep === 1 && (
+                <motion.div
+                  key="step1"
+                  custom={direction}
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="w-full"
+                >
+                  <StepPersonal 
+                    formData={formData} 
+                    handleChange={handleChange} 
+                    nextStep={nextStep} 
+                  />
+                </motion.div>
+              )}
+              
+              {currentStep === 2 && (
+                <motion.div
+                  key="step2"
+                  custom={direction}
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="w-full"
+                >
+                  <StepAddress 
+                    formData={formData} 
+                    handleChange={handleChange} 
+                    nextStep={nextStep} 
+                    prevStep={prevStep} 
+                  />
+                </motion.div>
+              )}
+              
+              {currentStep === 3 && (
+                <motion.div
+                  key="step3"
+                  custom={direction}
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="w-full"
+                >
+                  <StepProfessional 
+                    formData={formData} 
+                    handleChange={handleChange} 
+                    nextStep={nextStep} 
+                    prevStep={prevStep} 
+                  />
+                </motion.div>
+              )}
+              
+              {currentStep === 4 && (
+                <motion.div
+                  key="step4"
+                  custom={direction}
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="w-full"
+                >
+                  <StepPlans 
+                    formData={formData} 
+                    handleChange={handleChange} 
+                    handlePlansChange={handlePlansChange}
+                    handleDependentsChange={handleDependentsChange} 
+                    prevStep={prevStep} 
+                    handleSubmit={handleSubmit}
+                    sigRef={sigRef}
+                    processing={processing}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </form>
         </div>
       </div>

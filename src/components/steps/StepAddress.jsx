@@ -1,11 +1,51 @@
 import { useState, useEffect } from 'react';
 import CustomAlert from '../CustomAlert';
 
+// Função para validação do CEP
+const validations = {
+  CEP: (value) => {
+    // Remove caracteres não numéricos
+    const cep = value.replace(/[^\d]/g, '');
+    
+    // Verifica se tem 8 dígitos
+    return cep.length === 8;
+  },
+  
+  NUMERO: (value) => {
+    // Permite apenas números e letras (para casos como "123A", "S/N", etc.)
+    return /^[0-9a-zA-Z\s\/\-]+$/.test(value);
+  }
+};
+
+// Função para formatar valores
+const formatters = {
+  CEP: (value) => {
+    if (!value) return '';
+    // Remove caracteres não numéricos
+    const cep = value.replace(/[^\d]/g, '');
+    // Aplica máscara: 00000-000
+    return cep
+      .substring(0, 8)
+      .replace(/(\d{5})(\d{3})/, '$1-$2')
+      .replace(/(-\d{3})?$/, '$1');
+  },
+  
+  NUMERO: (value) => {
+    if (!value) return '';
+    // Permite apenas números e alguns caracteres específicos
+    return value.replace(/[^0-9a-zA-Z\s\/\-]/g, '');
+  }
+};
+
 export default function StepAddress({ formData, handleChange, nextStep, prevStep }) {
   // Estado para controlar a exibição do alerta
   const [alert, setAlert] = useState(null);
   // Estado para controlar se o formulário foi validado
   const [formValidated, setFormValidated] = useState(false);
+  // Estado para controlar erros de validação específicos
+  const [validationErrors, setValidationErrors] = useState({});
+  // Estado para controlar o carregamento do CEP
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
 
   // Efeito para fechar o alerta automaticamente após 5 segundos
   useEffect(() => {
@@ -27,14 +67,131 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
   const inputStyle =
     'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-black';
 
+  // Função modificada para aplicar formatação enquanto o usuário digita
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Aplica formatador se existir para o campo
+    if (formatters[name]) {
+      const formattedValue = formatters[name](value);
+      e.target.value = formattedValue;
+    }
+    
+    // Chama a função handleChange original
+    handleChange(e);
+    
+    // Valida o campo se o formulário já foi validado
+    if (formValidated && validations[name]) {
+      const isValid = validations[name](e.target.value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: isValid ? null : true
+      }));
+    }
+    
+    // Se for o CEP e tiver 8 dígitos, busca os dados do endereço
+    if (name === 'CEP') {
+      const cepDigits = value.replace(/[^\d]/g, '');
+      if (cepDigits.length === 8) {
+        fetchAddressByCep(cepDigits);
+      }
+    }
+  };
+  
+  // Função para buscar o endereço pelo CEP usando a API ViaCEP
+  const fetchAddressByCep = async (cep) => {
+    if (!cep || cep.length !== 8) return;
+    
+    try {
+      setIsLoadingCep(true);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        setAlert({
+          message: 'CEP não encontrado',
+          type: 'error'
+        });
+        return;
+      }
+      
+      // Atualiza os campos com os dados retornados
+      const addressFields = {
+        RUA: data.logradouro,
+        BAIRRO: data.bairro,
+        CIDADE: data.localidade,
+        ESTADO: data.uf
+      };
+      
+      // Atualiza os campos do formulário
+      Object.entries(addressFields).forEach(([field, value]) => {
+        if (value) {
+          const event = {
+            target: {
+              name: field,
+              value
+            }
+          };
+          handleChange(event);
+        }
+      });
+      
+      // Limpa os erros de validação desses campos
+      if (formValidated) {
+        setValidationErrors(prev => ({
+          ...prev,
+          RUA: null,
+          BAIRRO: null,
+          CIDADE: null,
+          ESTADO: null
+        }));
+      }
+      
+      // Move o foco para o campo de número
+      const numeroInput = document.querySelector('input[name="NUMERO"]');
+      if (numeroInput) {
+        numeroInput.focus();
+      }
+      
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      setAlert({
+        message: 'Erro ao buscar o CEP. Verifique sua conexão.',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
+
   const validateAndProceed = (e) => {
     e.preventDefault();
     setFormValidated(true);
     
+    // Verifica os campos obrigatórios
     const requiredFields = ['CEP', 'RUA', 'NUMERO', 'BAIRRO', 'CIDADE', 'ESTADO'];
-    const missingFields = requiredFields.filter((field) => !formData[field]);
+    const errors = {};
+    
+    // Verifica campos vazios
+    const missingFields = [];
+    requiredFields.forEach(field => {
+      if (!formData[field]) {
+        errors[field] = true;
+        missingFields.push(field);
+      }
+    });
+    
+    // Verifica validação específica para cada campo
+    requiredFields.forEach(field => {
+      if (formData[field] && validations[field] && !validations[field](formData[field])) {
+        errors[field] = true;
+      }
+    });
+    
+    setValidationErrors(errors);
 
-    if (missingFields.length > 0) {
+    // Se houver erros, mostra alerta
+    if (Object.keys(errors).length > 0) {
       // Mapeamento para nomes mais amigáveis
       const fieldNames = {
         CEP: 'CEP',
@@ -45,11 +202,18 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
         ESTADO: 'Estado'
       };
       
-      const readableFieldNames = missingFields.map(field => fieldNames[field] || field);
+      let message = '';
       
-      // Mostrar alerta personalizado em vez do alert() padrão
+      if (missingFields.length > 0) {
+        const readableFieldNames = missingFields.map(field => fieldNames[field] || field);
+        message = `Por favor, preencha os seguintes campos: ${readableFieldNames.join(', ')}`;
+      } else {
+        message = 'Por favor, corrija os erros de validação nos campos destacados';
+      }
+      
+      // Mostrar alerta personalizado
       setAlert({
-        message: `Por favor, preencha os seguintes campos: ${readableFieldNames.join(', ')}`,
+        message,
         type: 'warning'
       });
       return;
@@ -58,8 +222,10 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
     nextStep();
   };
   
-  // Função de utilidade para verificar se um campo está vazio e o formulário foi validado
-  const isFieldInvalid = (fieldName) => !formData[fieldName] && formValidated;
+  // Função para verificar se um campo está inválido
+  const isFieldInvalid = (fieldName) => {
+    return validationErrors[fieldName];
+  };
 
   return (
     <div className="space-y-4 relative">
@@ -77,18 +243,28 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
         <label className="block text-sm mb-1">
           CEP
         </label>
-        <input
-          name="CEP"
-          type="text"
-          required
-          value={formData.CEP || ''}
-          onChange={handleChange}
-          className={`${inputStyle} ${isFieldInvalid('CEP') ? 'border-red-500 bg-red-50' : ''}`}
-          placeholder="00000-000"
-        />
+        <div className="relative">
+          <input
+            name="CEP"
+            type="text"
+            required
+            value={formData.CEP || ''}
+            onChange={handleFormChange}
+            className={`${inputStyle} ${isFieldInvalid('CEP') ? 'border-red-500 bg-red-50' : ''}`}
+            placeholder="00000-000"
+            maxLength={9}
+            inputMode="numeric"
+          />
+          {isLoadingCep && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-5 h-5 border-t-2 border-[#00AE71] border-solid rounded-full animate-spin"></div>
+            </div>
+          )}
+        </div>
         {isFieldInvalid('CEP') && (
-          <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
+          <p className="text-xs text-red-500 mt-1">CEP inválido. Deve ter 8 dígitos</p>
         )}
+        <p className="text-xs text-gray-500 mt-1">Digite o CEP para preencher o endereço automaticamente</p>
       </div>
 
       {/* Rua e Número */}
@@ -102,7 +278,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             type="text"
             required
             value={formData.RUA || ''}
-            onChange={handleChange}
+            onChange={handleFormChange}
             className={`${inputStyle} ${isFieldInvalid('RUA') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="Nome da rua"
           />
@@ -119,7 +295,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             type="text"
             required
             value={formData.NUMERO || ''}
-            onChange={handleChange}
+            onChange={handleFormChange}
             className={`${inputStyle} ${isFieldInvalid('NUMERO') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="123"
           />
@@ -136,7 +312,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
           name="COMPLEMENTO"
           type="text"
           value={formData.COMPLEMENTO || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={inputStyle}
           placeholder="Apto, Bloco, etc."
         />
@@ -152,7 +328,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
           type="text"
           required
           value={formData.BAIRRO || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={`${inputStyle} ${isFieldInvalid('BAIRRO') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Nome do bairro"
         />
@@ -172,7 +348,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             type="text"
             required
             value={formData.CIDADE || ''}
-            onChange={handleChange}
+            onChange={handleFormChange}
             className={`${inputStyle} ${isFieldInvalid('CIDADE') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="Nome da cidade"
           />
@@ -189,7 +365,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             name="ESTADO"
             required
             value={formData.ESTADO || ''}
-            onChange={handleChange}
+            onChange={handleFormChange}
             className={`${inputStyle} ${isFieldInvalid('ESTADO') ? 'border-red-500 bg-red-50' : ''}`}
           >
             <option value="">Selecione...</option>

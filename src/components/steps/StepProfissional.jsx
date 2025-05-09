@@ -1,11 +1,105 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import CustomAlert from '../CustomAlert';
+import IconData from '../icons/IconData'; // Supondo que este ícone exista
+
+// Funções de validação
+const validations = {
+  // Validação de PIS (11 dígitos)
+  PIS: (value) => {
+    // Remove caracteres não numéricos
+    const pis = value.replace(/[^\d]/g, '');
+    
+    // Verifica se tem 11 dígitos
+    if (pis.length !== 11) return false;
+    
+    // Algoritmo de validação do dígito verificador (simplificado)
+    const multipliers = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    
+    for (let i = 0; i < 10; i++) {
+      sum += parseInt(pis.charAt(i)) * multipliers[i];
+    }
+    
+    const remainder = sum % 11;
+    const expectedDigit = remainder < 2 ? 0 : 11 - remainder;
+    
+    return parseInt(pis.charAt(10)) === expectedDigit;
+  },
+  
+  // Validação de data de admissão
+  ADMISSAO: (value) => {
+    // Verifica formato DD/MM/AAAA
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    
+    if (!dateRegex.test(value)) return false;
+    
+    const [_, day, month, year] = value.match(dateRegex);
+    const date = new Date(year, month - 1, day);
+    
+    // Verifica se é uma data válida
+    if (
+      date.getDate() !== parseInt(day) ||
+      date.getMonth() !== parseInt(month) - 1 ||
+      date.getFullYear() !== parseInt(year)
+    ) {
+      return false;
+    }
+    
+    // Verifica se a data não é futura
+    const today = new Date();
+    if (date > today) return false;
+    
+    return true;
+  },
+  
+  // Matrícula (apenas dígitos)
+  MATRICULA: (value) => {
+    // Remove caracteres não numéricos e verifica se tem pelo menos 3 dígitos
+    const matricula = value.replace(/[^\d]/g, '');
+    return matricula.length >= 3;
+  }
+};
+
+// Função para formatar valores
+const formatters = {
+  PIS: (value) => {
+    if (!value) return '';
+    // Remove caracteres não numéricos
+    const pis = value.replace(/[^\d]/g, '');
+    // Aplica máscara: 000.00000.00-0
+    return pis
+      .substring(0, 11)
+      .replace(/(\d{3})(\d{5})(\d{2})(\d{1})/, '$1.$2.$3-$4')
+      .replace(/(-\d{1})?$/, '$1');
+  },
+  
+  MATRICULA: (value) => {
+    if (!value) return '';
+    // Remove caracteres não numéricos
+    return value.replace(/[^\d]/g, '');
+  },
+  
+  ADMISSAO: (value) => {
+    if (!value) return '';
+    // Remove caracteres não numéricos
+    const date = value.replace(/[^\d]/g, '');
+    // Aplica máscara: DD/MM/AAAA
+    return date
+      .substring(0, 8)
+      .replace(/(\d{2})(\d{2})(\d{4})/, '$1/$2/$3')
+      .replace(/(\d{2}\/\d{2}\/)(.*)$/, '$1$2');
+  }
+};
 
 export default function StepProfessional({ formData, handleChange, nextStep, prevStep }) {
   // Estado para controlar a exibição do alerta
   const [alert, setAlert] = useState(null);
   // Estado para controlar se o formulário foi validado
   const [formValidated, setFormValidated] = useState(false);
+  // Estados para controlar erros de validação específicos
+  const [validationErrors, setValidationErrors] = useState({});
+  // Referência para o calendário
+  const calendarRef = useRef(null);
 
   // Efeito para fechar o alerta automaticamente após 5 segundos
   useEffect(() => {
@@ -18,17 +112,98 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
     }
   }, [alert]);
 
-  const inputStyle =
-    'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-gray-500';
+  // Função modificada para aplicar formatação enquanto o usuário digita
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Aplica formatador se existir para o campo
+    if (formatters[name]) {
+      const formattedValue = formatters[name](value);
+      e.target.value = formattedValue;
+    }
+    
+    // Chama a função handleChange original
+    handleChange(e);
+    
+    // Valida o campo se o formulário já foi validado
+    if (formValidated && validations[name]) {
+      const isValid = validations[name](e.target.value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: isValid ? null : true
+      }));
+    }
+  };
+
+  // Função para abrir o calendário nativo
+  const openCalendar = () => {
+    if (calendarRef.current) {
+      calendarRef.current.showPicker();
+    }
+  };
+
+  // Função para converter data do formato ISO para DD/MM/AAAA
+  const formatDateFromCalendar = (isoDate) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Manipulador para o calendário
+  const handleCalendarChange = (e) => {
+    const isoDate = e.target.value;
+    const formattedDate = formatDateFromCalendar(isoDate);
+    
+    const event = {
+      target: {
+        name: 'ADMISSAO',
+        value: formattedDate
+      }
+    };
+    
+    handleChange(event);
+    
+    // Valida o campo
+    if (formValidated && validations.ADMISSAO) {
+      const isValid = validations.ADMISSAO(formattedDate);
+      setValidationErrors(prev => ({
+        ...prev,
+        ADMISSAO: isValid ? null : true
+      }));
+    }
+  };
 
   const validateAndProceed = (e) => {
     e.preventDefault();
     setFormValidated(true);
     
+    // Verifica os campos obrigatórios
     const requiredFields = ['EMPRESA', 'MATRICULA', 'ORGAO', 'CARGO', 'PIS', 'ADMISSAO'];
-    const missingFields = requiredFields.filter(field => !formData[field]);
+    const errors = {};
     
-    if (missingFields.length > 0) {
+    // Verifica campos vazios
+    const missingFields = [];
+    requiredFields.forEach(field => {
+      if (!formData[field]) {
+        errors[field] = true;
+        missingFields.push(field);
+      }
+    });
+    
+    // Verifica validação específica para cada campo
+    requiredFields.forEach(field => {
+      if (formData[field] && validations[field] && !validations[field](formData[field])) {
+        errors[field] = true;
+      }
+    });
+    
+    setValidationErrors(errors);
+
+    // Se houver erros, mostra alerta
+    if (Object.keys(errors).length > 0) {
       // Mapeamento para nomes mais amigáveis
       const fieldNames = {
         EMPRESA: 'Empresa',
@@ -39,11 +214,18 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
         ADMISSAO: 'Data de Admissão'
       };
       
-      const readableFieldNames = missingFields.map(field => fieldNames[field] || field);
+      let message = '';
       
-      // Mostrar alerta personalizado em vez do alert() padrão
+      if (missingFields.length > 0) {
+        const readableFieldNames = missingFields.map(field => fieldNames[field] || field);
+        message = `Por favor, preencha os seguintes campos: ${readableFieldNames.join(', ')}`;
+      } else {
+        message = 'Por favor, corrija os erros de validação nos campos destacados';
+      }
+      
+      // Mostrar alerta personalizado
       setAlert({
-        message: `Por favor, preencha os seguintes campos: ${readableFieldNames.join(', ')}`,
+        message,
         type: 'warning'
       });
       return;
@@ -52,8 +234,13 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
     nextStep();
   };
 
-  // Função de utilidade para verificar se um campo está vazio e o formulário foi validado
-  const isFieldInvalid = (fieldName) => !formData[fieldName] && formValidated;
+  // Função para verificar se um campo está inválido
+  const isFieldInvalid = (fieldName) => {
+    return validationErrors[fieldName];
+  };
+
+  const inputStyle =
+    'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-black';
 
   return (
     <div className="space-y-4 relative">
@@ -75,7 +262,7 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           type="text"
           required
           value={formData.EMPRESA || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={`${inputStyle} ${isFieldInvalid('EMPRESA') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Nome da empresa"
         />
@@ -93,12 +280,13 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           type="text"
           required
           value={formData.MATRICULA || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={`${inputStyle} ${isFieldInvalid('MATRICULA') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Número de matrícula"
+          inputMode="numeric"
         />
         {isFieldInvalid('MATRICULA') && (
-          <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
+          <p className="text-xs text-red-500 mt-1">Matrícula inválida. Use apenas números (mínimo 3 dígitos)</p>
         )}
       </div>
       
@@ -111,7 +299,7 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           type="text"
           required
           value={formData.ORGAO || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={`${inputStyle} ${isFieldInvalid('ORGAO') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Nome do órgão"
         />
@@ -129,7 +317,7 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           type="text"
           required
           value={formData.CARGO || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={`${inputStyle} ${isFieldInvalid('CARGO') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Cargo atual"
         />
@@ -147,12 +335,13 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
           type="text"
           required
           value={formData.PIS || ''}
-          onChange={handleChange}
+          onChange={handleFormChange}
           className={`${inputStyle} ${isFieldInvalid('PIS') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="000.00000.00-0"
+          maxLength={14}
         />
         {isFieldInvalid('PIS') && (
-          <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
+          <p className="text-xs text-red-500 mt-1">PIS inválido</p>
         )}
       </div>
       
@@ -160,17 +349,34 @@ export default function StepProfessional({ formData, handleChange, nextStep, pre
         <label className="block text-sm mb-1">
           Data de Admissão
         </label>
-        <input
-          name="ADMISSAO"
-          type="text"
-          required
-          value={formData.ADMISSAO || ''}
-          onChange={handleChange}
-          className={`${inputStyle} ${isFieldInvalid('ADMISSAO') ? 'border-red-500 bg-red-50' : ''}`}
-          placeholder="DD/MM/AAAA"
-        />
+        <div className="relative">
+          <input
+            name="ADMISSAO"
+            type="text"
+            required
+            value={formData.ADMISSAO || ''}
+            onChange={handleFormChange}
+            className={`${inputStyle} pr-10 ${isFieldInvalid('ADMISSAO') ? 'border-red-500 bg-red-50' : ''}`}
+            placeholder="DD/MM/AAAA"
+          />
+          <div 
+            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
+            onClick={openCalendar}
+          >
+            <IconData className="w-5 h-5" />
+          </div>
+          
+          {/* Calendário escondido */}
+          <input
+            ref={calendarRef}
+            type="date"
+            className="opacity-0 absolute w-0 h-0"
+            onChange={handleCalendarChange}
+            max={new Date().toISOString().split('T')[0]} // Limita até hoje
+          />
+        </div>
         {isFieldInvalid('ADMISSAO') && (
-          <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
+          <p className="text-xs text-red-500 mt-1">Data de admissão inválida ou futura</p>
         )}
       </div>
       
