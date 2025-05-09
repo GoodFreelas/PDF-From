@@ -132,18 +132,16 @@ export default function App() {
   return (
     <div className="flex min-h-screen">
       {/* Lado esquerdo - Imagem */}
-      <div className="hidden md:block md:w-1/2 bg-[#00AE71]">
-        <div className="h-screen w-full">
+      <div className="hidden md:block fixed top-0 left-0 h-screen w-1/2 bg-[#00AE71] z-10">
           <img 
             src="/bg.png" 
             alt="AMPARE" 
             className="w-full h-full object-cover" 
           />
-        </div>
-    </div>
+      </div>
       
       {/* Lado direito - Formulário */}
-      <div className="w-full md:w-1/2 p-6">
+      <div className="w-full md:w-1/2 md:ml-[50%] p-6">
         <div className="max-w-xl mx-auto">
           <div className="mb-8">
           <h1 className="font-roboto font-bold text-[40px] leading-[100%] tracking-[0%] text-black mb-5">

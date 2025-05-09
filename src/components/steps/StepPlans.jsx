@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import SignatureCanvas from '../SignatureCanvas';
+import CustomAlert from '../CustomAlert';
 
 export default function StepPlans({ 
   formData, 
@@ -13,6 +14,12 @@ export default function StepPlans({
 }) {
   const [selectedPlans, setSelectedPlans] = useState(formData.selectedPlans || []);
   const [dependents, setDependents] = useState(formData.dependents || []);
+  // Estado para controlar se o vitalmed está selecionado
+  const [isVitalmedSelected, setIsVitalmedSelected] = useState(selectedPlans.includes('vitalmed'));
+  // Estado para controlar o alerta personalizado
+  const [alert, setAlert] = useState(null);
+  // Estado para controlar se o formulário foi validado
+  const [formValidated, setFormValidated] = useState(false);
 
   const plansOptions = [
     { id: 'qualidonto', label: 'Qualidonto' },
@@ -20,8 +27,26 @@ export default function StepPlans({
     { id: 'saude', label: 'Blue Saúde' }
   ];
 
+  // Efeito para fechar o alerta automaticamente após 5 segundos
+  useEffect(() => {
+    if (alert) {
+      const timer = setTimeout(() => {
+        setAlert(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [alert]);
+
   useEffect(() => {
     handlePlansChange(selectedPlans);
+    // Atualiza o estado de vitalmed selecionado
+    setIsVitalmedSelected(selectedPlans.includes('vitalmed'));
+    
+    // Se o vitalmed for desmarcado, limpar os dependentes
+    if (!selectedPlans.includes('vitalmed') && dependents.length > 0) {
+      setDependents([]);
+    }
   }, [selectedPlans]);
 
   useEffect(() => {
@@ -56,24 +81,46 @@ export default function StepPlans({
 
   const validateAndSubmit = (e) => {
     e.preventDefault();
+    setFormValidated(true);
+
+    // Verificar se o valor foi preenchido
+    if (!formData.VALOR) {
+      setAlert({
+        message: 'Por favor, preencha o valor.',
+        type: 'warning'
+      });
+      return;
+    }
 
     if (selectedPlans.length === 0) {
-      alert('Por favor, selecione pelo menos um plano.');
+      setAlert({
+        message: 'Por favor, selecione pelo menos um plano.',
+        type: 'warning'
+      });
       return;
     }
 
     if (sigRef.current?.isEmpty()) {
-      alert('Por favor, assine antes de continuar.');
+      setAlert({
+        message: 'Por favor, assine antes de continuar.',
+        type: 'warning'
+      });
       return;
     }
 
-    const invalidDependents = dependents.filter(
-      dep => !dep.NOME || !dep.CPF || !dep.NASCIMENTO
-    );
+    // Só valida dependentes se o vitalmed estiver selecionado
+    if (isVitalmedSelected && dependents.length > 0) {
+      const invalidDependents = dependents.filter(
+        dep => !dep.NOME || !dep.CPF || !dep.NASCIMENTO
+      );
 
-    if (invalidDependents.length > 0) {
-      alert('Por favor, preencha todos os dados dos dependentes ou remova-os.');
-      return;
+      if (invalidDependents.length > 0) {
+        setAlert({
+          message: 'Por favor, preencha todos os dados dos dependentes ou remova-os.',
+          type: 'warning'
+        });
+        return;
+      }
     }
 
     handleSubmit(e);
@@ -82,146 +129,169 @@ export default function StepPlans({
   const inputStyle = 'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-gray-500';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Exibe o alerta personalizado quando necessário */}
+      {alert && (
+        <CustomAlert 
+          message={alert.message} 
+          type={alert.type} 
+          onClose={() => setAlert(null)} 
+        />
+      )}
 
       <div className="text-gray-500 focus-within:text-black">
-        <label className="block text-sm mb-1">Valor</label>
+        <label className="block text-sm mb-1">
+          Valor
+        </label>
         <input
           name="VALOR"
           type="text"
           required
           value={formData.VALOR || ''}
           onChange={handleChange}
-          className={inputStyle}
+          className={`${inputStyle} ${!formData.VALOR && formValidated ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="R$ 0,00"
         />
+        {!formData.VALOR && formValidated && (
+          <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
+        )}
       </div>
 
       <div>
-  <div className="space-y-4">
-    {plansOptions.map(plan => {
-      const isSelected = selectedPlans.includes(plan.id);
-      return (
-        <div key={plan.id} className="space-y-1">
-          <div 
-            className="flex items-center justify-between cursor-pointer"
-            onClick={() => togglePlan(plan.id)}
-          >
-            <div className="flex flex-col">
-              <span
-                className="text-black"
-                style={{
-                  fontFamily: 'Roboto',
-                  fontWeight: 400,
-                  fontSize: '20px',
-                  lineHeight: '100%',
-                  letterSpacing: '0%',
-                }}
-              >
-                {plan.label}
-              </span>
-              <span
-                className="text-gray-500"
-                style={{
-                  fontFamily: 'Roboto',
-                  fontWeight: 400,
-                  fontSize: '14px',
-                  lineHeight: '100%',
-                  letterSpacing: '0%',
-                  textAlign: 'right',
-                }}
-              >
-                Clique aqui para ler os termos
-              </span>
-            </div>
+        <div className="space-y-4">
+          {plansOptions.map(plan => {
+            const isSelected = selectedPlans.includes(plan.id);
+            return (
+              <div key={plan.id} className="space-y-1">
+                <div 
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => togglePlan(plan.id)}
+                >
+                  <div className="flex flex-col">
+                    <span
+                      className="text-black mb-1"
+                      style={{
+                        fontWeight: 400,
+                        fontSize: '20px',
+                        lineHeight: '100%',
+                        letterSpacing: '0%',
+                      }}
+                    >
+                      {plan.label}
+                    </span>
+                    <span
+                      className="text-gray-500"
+                      style={{
+                        fontWeight: 400,
+                        fontSize: '14px',
+                        lineHeight: '100%',
+                        letterSpacing: '0%',
+                        textAlign: 'right',
+                      }}
+                    >
+                      Clique aqui para ler os termos
+                    </span>
+                  </div>
 
-            {/* Botão toggle com bolinha animada */}
-            <div
-              className={`w-[35px] h-[20px] rounded-full p-[2px] flex items-center transition-colors duration-300 ${
-                isSelected ? 'bg-green-500' : 'bg-gray-300'
-              }`}
-            >
-              <div
-                className={`w-[16px] h-[16px] bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-                  isSelected ? 'translate-x-[15px]' : 'translate-x-0'
-                }`}
-              />
-            </div>
-          </div>
+                  {/* Botão toggle com bolinha animada */}
+                  <div
+                    className={`w-[35px] h-[20px] rounded-full p-[2px] flex items-center transition-colors duration-300 ${
+                      isSelected ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`w-[16px] h-[16px] bg-white rounded-full shadow-md transform transition-transform duration-300 ${
+                        isSelected ? 'translate-x-[15px]' : 'translate-x-0'
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      );
-    })}
-  </div>
-</div>
-
-
-      <div className="pt-4 border-t mt-4">
-        <div className="flex justify-between items-center mb-3">
-        {dependents.length < 6 && (
-          <button
-            type="button"
-            onClick={addDependent}
-            className="bg-[#00AE71] hover:bg-green-700 text-white rounded-[10px] px-[30px] py-[15px] w-[257px] h-[55px] text-sm"
-          >
-            Adicionar Dependente
-          </button>
+        {selectedPlans.length === 0 && formValidated && (
+          <p className="text-xs text-red-500 mt-1">Por favor, selecione pelo menos um plano</p>
         )}
-
-        </div>
-
-        {dependents.map((dependent, index) => (
-          <div key={index} className="p-4 border rounded mb-4 bg-gray-50 space-y-3">
-            <div className="flex justify-between items-center">
-              <h4 className="text-sm font-medium">Dependente {index + 1}</h4>
-              <button
-                type="button"
-                onClick={() => removeDependent(index)}
-                className="text-red-500 text-sm hover:text-red-700"
-              >
-                Remover
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-gray-500 focus-within:text-black">
-                <label className="block text-sm mb-0.5">Nome</label>
-                <input
-                  type="text"
-                  value={dependent.NOME || ''}
-                  onChange={(e) => updateDependent(index, 'NOME', e.target.value)}
-                  className={inputStyle}
-                  placeholder="Nome completo"
-                />
-              </div>
-
-              <div className="text-gray-500 focus-within:text-black">
-                <label className="block text-sm mb-0.5">CPF</label>
-                <input
-                  type="text"
-                  value={dependent.CPF || ''}
-                  onChange={(e) => updateDependent(index, 'CPF', e.target.value)}
-                  className={inputStyle}
-                  placeholder="000.000.000-00"
-                />
-              </div>
-
-              <div className="text-gray-500 focus-within:text-black">
-                <label className="block text-sm mb-0.5">Data de Nascimento</label>
-                <input
-                  type="text"
-                  value={dependent.NASCIMENTO || ''}
-                  onChange={(e) => updateDependent(index, 'NASCIMENTO', e.target.value)}
-                  className={inputStyle}
-                  placeholder="DD/MM/AAAA"
-                />
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
 
+      {/* Mostrar seção de dependentes somente se vitalmed estiver selecionado */}
+      {isVitalmedSelected && (
+        <div className="pt-4 border-t mt-4">
+          <div className="flex justify-between items-center mb-3">
+            {dependents.length < 6 && (
+              <button
+                type="button"
+                onClick={addDependent}
+                className="bg-[#00AE71] hover:bg-green-700 text-white rounded-[10px] px-[30px] py-[15px] w-[257px] h-[55px] text-sm"
+              >
+                Adicionar Dependente
+              </button>
+            )}
+          </div>
+
+          {dependents.map((dependent, index) => (
+            <div key={index} className="p-4 border rounded mb-4 bg-gray-50 space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-medium">Dependente {index + 1}</h4>
+                <button
+                  type="button"
+                  onClick={() => removeDependent(index)}
+                  className="text-red-500 text-sm hover:text-red-700"
+                >
+                  Remover
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-gray-500 focus-within:text-black">
+                  <label className="block text-sm mb-0.5">
+                    Nome
+                  </label>
+                  <input
+                    type="text"
+                    value={dependent.NOME || ''}
+                    onChange={(e) => updateDependent(index, 'NOME', e.target.value)}
+                    className={`${inputStyle} ${!dependent.NOME && formValidated ? 'border-red-500 bg-red-50' : ''}`}
+                    placeholder="Nome completo"
+                  />
+                </div>
+
+                <div className="text-gray-500 focus-within:text-black">
+                  <label className="block text-sm mb-0.5">
+                    CPF
+                  </label>
+                  <input
+                    type="text"
+                    value={dependent.CPF || ''}
+                    onChange={(e) => updateDependent(index, 'CPF', e.target.value)}
+                    className={`${inputStyle} ${!dependent.CPF && formValidated ? 'border-red-500 bg-red-50' : ''}`}
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+
+                <div className="text-gray-500 focus-within:text-black">
+                  <label className="block text-sm mb-0.5">
+                    Data de Nascimento
+                  </label>
+                  <input
+                    type="text"
+                    value={dependent.NASCIMENTO || ''}
+                    onChange={(e) => updateDependent(index, 'NASCIMENTO', e.target.value)}
+                    className={`${inputStyle} ${!dependent.NASCIMENTO && formValidated ? 'border-red-500 bg-red-50' : ''}`}
+                    placeholder="DD/MM/AAAA"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="pt-4 mt-4">
-        <label className="block text-sm mb-1">Assinatura</label>
+        <label className="block text-sm mb-1">
+          Assinatura
+        </label>
         <p
           className="text-gray-500 text-sm mb-2"
           style={{
@@ -237,7 +307,7 @@ export default function StepPlans({
         </p>
 
         <div
-          className="relative bg-transparent border border-gray-300 rounded-[10px] p-[20px]"
+          className={`relative bg-transparent border rounded-[10px] p-[20px] ${sigRef.current?.isEmpty() && formValidated ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
         >
           <SignatureCanvas
             ref={sigRef}
@@ -252,6 +322,9 @@ export default function StepPlans({
             Limpar
           </button>
         </div>
+        {sigRef.current?.isEmpty() && formValidated && (
+          <p className="text-xs text-red-500 mt-1">Por favor, adicione sua assinatura</p>
+        )}
       </div>
 
       <div className="mt-6 flex justify-between">
