@@ -21,52 +21,53 @@ export default function App() {
   const [done, setDone] = useState(false);
   const [direction, setDirection] = useState(1);
   const sigRef = useRef(null);
-  // Novo estado para controlar a disponibilidade do servidor
-  const [serverStatus, setServerStatus] = useState({
-    isChecking: true,
-    isOnline: false,
-    message: "Verificando conexão com o servidor...",
-    details: null
-  });
+  // Estado para controlar a tentativa de acordar o servidor (sem bloquear o uso do app)
+  const [serverWakeupAttempted, setServerWakeupAttempted] = useState(false);
 
-  // Efeito para verificar o status do servidor na montagem do componente
+  // Efeito para enviar uma requisição "ping" para acordar o servidor na Render
   useEffect(() => {
-    const checkServerStatus = async () => {
+    const wakeupRenderServer = async () => {
+      if (serverWakeupAttempted) return; // Evitar múltiplas tentativas
+      
       try {
-        setServerStatus(prev => ({ ...prev, isChecking: true }));
+        console.log("Tentando acordar o servidor na Render...");
+        setServerWakeupAttempted(true);
         
-        const response = await fetch(`${API_BASE_URL}/api/check-status`, {
+        // Usando o método que não bloqueia o uso do aplicativo
+        // e não depende de CORS para funcionar
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10s timeout
+        
+        // Fetch que não bloqueia o uso do app mesmo se falhar
+        fetch(`${API_BASE_URL}/api/check-status`, {
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error('Servidor indisponível');
-        }
-        
-        const data = await response.json();
-        
-        setServerStatus({
-          isChecking: false,
-          isOnline: true,
-          message: "Servidor conectado",
-          details: data
-        });
+          signal: abortController.signal,
+          // Remover credentials para evitar problemas de CORS
+          // credentials: 'include',
+          // Modo 'no-cors' permite o request, mas não a resposta
+          mode: 'no-cors'
+        })
+          .then(response => {
+            console.log("Servidor acordado com sucesso!");
+            clearTimeout(timeoutId);
+          })
+          .catch(err => {
+            // Falha silenciosa - não afeta o uso do app
+            if (err.name !== 'AbortError') {
+              console.log("Erro ao acordar o servidor, mas o app continuará funcionando:", err.message);
+            } else {
+              console.log("Timeout ao acordar o servidor, mas o app continuará funcionando");
+            }
+          });
       } catch (error) {
-        console.error('Erro ao verificar o status do servidor:', error);
-        setServerStatus({
-          isChecking: false,
-          isOnline: false,
-          message: `Servidor indisponível: ${error.message}`,
-          details: null
-        });
+        // Falha silenciosa - não afeta o uso do app
+        console.log("Erro ao tentar acordar o servidor:", error);
       }
     };
     
-    // Executa a verificação assim que o componente montar
-    checkServerStatus();
-  }, []);
+    // Tenta acordar o servidor na montagem do componente
+    wakeupRenderServer();
+  }, [serverWakeupAttempted]);
 
   // Dados dos steps
   const stepData = [
@@ -120,16 +121,9 @@ export default function App() {
     setFormData((prev) => ({ ...prev, selectedPlans: plans }));
   };
 
-  // Função para lidar com o envio final do formulário
+  // Função para lidar com o envio final do formulário com sistema de retry
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Verifica se o servidor está online antes de tentar enviar
-    if (!serverStatus.isOnline) {
-      alert('O servidor está indisponível no momento. Por favor, tente novamente mais tarde.');
-      return;
-    }
-    
     setProcessing(true);
     
     try {
@@ -147,28 +141,56 @@ export default function App() {
       // Captura a assinatura como dataURL
       const sigDataUrl = sigRef.current.toDataURL('image/png');
       
-      // Envia todos os dados para o servidor processar
-      const resp = await fetch(`${API_BASE_URL}/generate-pdfs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          formData,
-          signatureData: sigDataUrl,
-          contratos: selectedPlans.join(',')
-        })
-      });
+      // Sistema de retry para caso o servidor tenha acordado mas ainda esteja "esquentando"
+      let attempts = 0;
+      const maxAttempts = 3;
+      let success = false;
+      let responseData;
       
-      if (!resp.ok) {
-        const payload = await resp.json().catch(() => ({}));
-        throw new Error(payload.message || 'Erro no servidor');
+      while (attempts < maxAttempts && !success) {
+        try {
+          attempts++;
+          
+          // Se não for a primeira tentativa, mostra feedback
+          if (attempts > 1) {
+            console.log(`Tentativa ${attempts} de ${maxAttempts}...`);
+          }
+          
+          // Tenta enviar os dados
+          const resp = await fetch(`${API_BASE_URL}/generate-pdfs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // Remover credentials para evitar problemas de CORS
+            // credentials: 'include',
+            body: JSON.stringify({
+              formData,
+              signatureData: sigDataUrl,
+              contratos: selectedPlans.join(',')
+            })
+          });
+          
+          if (!resp.ok) {
+            const payload = await resp.json().catch(() => ({}));
+            throw new Error(payload.message || `Erro no servidor (${resp.status})`);
+          }
+          
+          // Processa a resposta do servidor
+          responseData = await resp.json();
+          success = true;
+        } catch (error) {
+          if (attempts >= maxAttempts) {
+            throw error; // Re-lança o erro se esgotar as tentativas
+          }
+          
+          // Espera um pouco antes de tentar novamente (backoff exponencial)
+          const delay = 2000 * Math.pow(2, attempts - 1); // 2s, 4s, 8s...
+          console.log(`Falha na tentativa ${attempts}. Tentando novamente em ${delay/1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
       
-      // Processa a resposta do servidor
-      const responseData = await resp.json();
-      
       // Se temos PDFs no resultado, fazemos o download
-      if (responseData.pdfs) {
+      if (responseData?.pdfs) {
         // Para cada PDF retornado pelo servidor, cria um link para download
         Object.entries(responseData.pdfs).forEach(([filename, base64Data]) => {
           // Converte base64 para blob
@@ -225,21 +247,6 @@ export default function App() {
       }
     })
   };
-  
-  // Componente de alerta de servidor offline
-  const ServerOfflineAlert = () => (
-    <div className="fixed top-0 left-0 right-0 bg-red-500 text-white p-4 z-50 text-center">
-      <p className="text-sm font-medium">
-        {serverStatus.message} 
-        <button 
-          onClick={() => window.location.reload()} 
-          className="ml-4 bg-white text-red-500 px-3 py-1 rounded-md text-xs font-bold"
-        >
-          Tentar Novamente
-        </button>
-      </p>
-    </div>
-  );
 
   // Se o processo estiver concluído, exibe a mensagem de sucesso
   if (done) {
@@ -248,7 +255,6 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen">
-      
       {/* Lado esquerdo - Imagem */}
       <div className="hidden md:block fixed top-0 left-0 h-screen w-1/2 bg-[#00AE71] z-10">
         <img 
@@ -261,14 +267,6 @@ export default function App() {
       {/* Lado direito - Formulário */}
       <div className="w-full md:w-1/2 md:ml-[50%] p-6">
         <div className="max-w-xl mx-auto">
-          {/* Indicador de carregamento durante a verificação do servidor */}
-          {serverStatus.isChecking && (
-            <div className="flex justify-center items-center my-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#00AE71]"></div>
-              <span className="ml-2 text-sm text-gray-600">Verificando conexão...</span>
-            </div>
-          )}
-          
           <div className="mb-8 mt-10">
             <h1 className="font-roboto font-bold text-[40px] leading-[100%] tracking-[0%] text-black mb-5">
               Adesão a benefícios
@@ -305,8 +303,8 @@ export default function App() {
             </div>
           </div>
           
-          {/* Formulário - Desabilitado se o servidor estiver offline */}
-          <form onSubmit={handleSubmit} className={`relative overflow-hidden ${!serverStatus.isOnline && !serverStatus.isChecking ? 'opacity-50 pointer-events-none' : ''}`}>
+          {/* Formulário */}
+          <form onSubmit={handleSubmit} className="relative overflow-hidden">
             <AnimatePresence initial={false} custom={direction} mode="wait">
               {currentStep === 1 && (
                 <motion.div
