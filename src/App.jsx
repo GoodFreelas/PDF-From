@@ -12,7 +12,7 @@ import IconProfessional from './components/icons/IconProfessional';
 import IconSeparador from './components/icons/IconSeparador';
 
 // URL base da API
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://pdf-from.onrender.com';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
