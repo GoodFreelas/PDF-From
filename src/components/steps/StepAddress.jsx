@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Cleave from 'cleave.js/react';
 import CustomAlert from '../CustomAlert';
 
 // Função para validação do CEP
@@ -14,26 +15,6 @@ const validations = {
   NUMERO: (value) => {
     // Permite apenas números e letras (para casos como "123A", "S/N", etc.)
     return /^[0-9a-zA-Z\s\/\-]+$/.test(value);
-  }
-};
-
-// Função para formatar valores
-const formatters = {
-  CEP: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    const cep = value.replace(/[^\d]/g, '');
-    // Aplica máscara: 00000-000
-    return cep
-      .substring(0, 8)
-      .replace(/(\d{5})(\d{3})/, '$1-$2')
-      .replace(/(-\d{3})?$/, '$1');
-  },
-  
-  NUMERO: (value) => {
-    if (!value) return '';
-    // Permite apenas números e alguns caracteres específicos
-    return value.replace(/[^0-9a-zA-Z\s\/\-]/g, '');
   }
 };
 
@@ -65,24 +46,27 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
   ];
 
   const inputStyle =
-    'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-black';
+    'h-[45px] rounded-[10px] border border-gray-300 px-[20px] w-full focus:outline-none focus:border-[#00AE71] text-black';
 
-  // Função modificada para aplicar formatação enquanto o usuário digita
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
+  // Função para lidar com alterações nos campos Cleave
+  const handleCleaveChange = (e) => {
+    const { name, rawValue, value } = e.target;
     
-    // Aplica formatador se existir para o campo
-    if (formatters[name]) {
-      const formattedValue = formatters[name](value);
-      e.target.value = formattedValue;
-    }
+    // Cria um evento sintético para ser compatível com o handleChange original
+    const syntheticEvent = {
+      target: {
+        name,
+        value,
+        rawValue
+      }
+    };
     
     // Chama a função handleChange original
-    handleChange(e);
+    handleChange(syntheticEvent);
     
     // Valida o campo se o formulário já foi validado
     if (formValidated && validations[name]) {
-      const isValid = validations[name](e.target.value);
+      const isValid = validations[name](value);
       setValidationErrors(prev => ({
         ...prev,
         [name]: isValid ? null : true
@@ -95,6 +79,23 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
       if (cepDigits.length === 8) {
         fetchAddressByCep(cepDigits);
       }
+    }
+  };
+
+  // Função para campos que não usam Cleave
+  const handleRegularChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Chama a função handleChange original
+    handleChange(e);
+    
+    // Valida o campo se o formulário já foi validado
+    if (formValidated && validations[name]) {
+      const isValid = validations[name](value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: isValid ? null : true
+      }));
     }
   };
   
@@ -244,16 +245,18 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
           CEP
         </label>
         <div className="relative">
-          <input
+          <Cleave
             name="CEP"
-            type="text"
             required
             value={formData.CEP || ''}
-            onChange={handleFormChange}
+            onChange={handleCleaveChange}
             className={`${inputStyle} ${isFieldInvalid('CEP') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="00000-000"
-            maxLength={9}
-            inputMode="numeric"
+            options={{
+              delimiters: ['-'],
+              blocks: [5, 3],
+              numericOnly: true
+            }}
           />
           {isLoadingCep && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -278,7 +281,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             type="text"
             required
             value={formData.RUA || ''}
-            onChange={handleFormChange}
+            onChange={handleRegularChange}
             className={`${inputStyle} ${isFieldInvalid('RUA') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="Nome da rua"
           />
@@ -290,14 +293,20 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
           <label className="block text-sm mb-1">
             Número
           </label>
-          <input
+          <Cleave
             name="NUMERO"
-            type="text"
             required
             value={formData.NUMERO || ''}
-            onChange={handleFormChange}
+            onChange={handleCleaveChange}
             className={`${inputStyle} ${isFieldInvalid('NUMERO') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="123"
+            options={{
+              blocks: [10],
+              uppercase: true,
+              // Aceita números, letras, espaços, / e -
+              numericOnly: false,
+              delimiter: ''
+            }}
           />
           {isFieldInvalid('NUMERO') && (
             <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
@@ -312,7 +321,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
           name="COMPLEMENTO"
           type="text"
           value={formData.COMPLEMENTO || ''}
-          onChange={handleFormChange}
+          onChange={handleRegularChange}
           className={inputStyle}
           placeholder="Apto, Bloco, etc."
         />
@@ -328,7 +337,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
           type="text"
           required
           value={formData.BAIRRO || ''}
-          onChange={handleFormChange}
+          onChange={handleRegularChange}
           className={`${inputStyle} ${isFieldInvalid('BAIRRO') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Nome do bairro"
         />
@@ -348,7 +357,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             type="text"
             required
             value={formData.CIDADE || ''}
-            onChange={handleFormChange}
+            onChange={handleRegularChange}
             className={`${inputStyle} ${isFieldInvalid('CIDADE') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="Nome da cidade"
           />
@@ -365,7 +374,7 @@ export default function StepAddress({ formData, handleChange, nextStep, prevStep
             name="ESTADO"
             required
             value={formData.ESTADO || ''}
-            onChange={handleFormChange}
+            onChange={handleRegularChange}
             className={`${inputStyle} ${isFieldInvalid('ESTADO') ? 'border-red-500 bg-red-50' : ''}`}
           >
             <option value="">Selecione...</option>

@@ -460,8 +460,4 @@ async function sendEmailWithAttachments(destino, anexos, nome) {
 /* ───────────────────────────── start! ─────────────────────────────────── */
 app.listen(PORT, () => {
   console.log(`✅  Servidor rodando em http://localhost:${PORT}`);
-  console.log(`✅  PDFs disponíveis em:`);
-  console.log(`   - http://localhost:${PORT}/contrato-blue-saude.pdf`);
-  console.log(`   - http://localhost:${PORT}/contrato-qualidonto.pdf`);
-  console.log(`   - http://localhost:${PORT}/contrato-vitalmed.pdf`);
 });

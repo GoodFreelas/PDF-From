@@ -1,6 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
+import Cleave from 'cleave.js/react';
 import IconData from '../icons/IconData';
 import CustomAlert from '../CustomAlert';
+
+// Importações necessárias para o Cleave
+import 'cleave.js/dist/addons/cleave-phone.br';
 
 // Função para obter a data atual formatada
 const getCurrentDate = () => {
@@ -88,19 +92,23 @@ const validations = {
     const today = new Date();
     if (date > today) return false;
     
-    // Verifica se a pessoa tem pelo menos 18 anos
-    const eighteenYearsAgo = new Date();
-    eighteenYearsAgo.setFullYear(today.getFullYear() - 18);
+    // Verifica se a pessoa tem pelo menos 12 anos
+    const twelveYearsAgo = new Date();
+    twelveYearsAgo.setFullYear(today.getFullYear() - 12);
     
-    return date <= eighteenYearsAgo;
+    // Verifica se a pessoa tem no máximo 120 anos
+    const oneHundredTwentyYearsAgo = new Date();
+    oneHundredTwentyYearsAgo.setFullYear(today.getFullYear() - 120);
+    
+    return date <= twelveYearsAgo && date >= oneHundredTwentyYearsAgo;
   },
   
   // Validação de Telefone
   TELEFONE1: (value) => {
     // Remove caracteres não numéricos
     const phone = value.replace(/[^\d]/g, '');
-    // Verifica se tem 10 ou 11 dígitos (com ou sem o 9)
-    return phone.length >= 10 && phone.length <= 11;
+    // Verifica se tem 11 dígitos (2 do DDD + 9 do número)
+    return phone.length === 11;
   },
   
   TELEFONE2: (value) => {
@@ -109,8 +117,8 @@ const validations = {
     
     // Remove caracteres não numéricos
     const phone = value.replace(/[^\d]/g, '');
-    // Verifica se tem 10 ou 11 dígitos (com ou sem o 9)
-    return phone.length >= 10 && phone.length <= 11;
+    // Verifica se tem 11 dígitos (2 do DDD + 9 do número)
+    return phone.length === 11;
   },
   
   // Validação de nome (não pode conter números)
@@ -119,57 +127,6 @@ const validations = {
     
     // Verifica se contém apenas letras, espaços e alguns caracteres especiais comuns em nomes
     return /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'.,-]+$/.test(value);
-  }
-};
-
-// Função para formatar valores
-const formatters = {
-  CPF: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    const cpf = value.replace(/[^\d]/g, '');
-    // Aplica máscara: 000.000.000-00
-    return cpf
-      .substring(0, 11)
-      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      .replace(/(-\d{2})?$/, '$1');
-  },
-  
-  RG: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    return value.replace(/[^\d]/g, '');
-  },
-  
-  TELEFONE1: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    const phone = value.replace(/[^\d]/g, '');
-    // Aplica máscara: (00) 00000-0000 ou (00) 0000-0000
-    if (phone.length <= 10) {
-      return phone.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-    }
-    return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  },
-  
-  TELEFONE2: (value) => formatters.TELEFONE1(value),
-  
-  NASCIMENTO: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    const date = value.replace(/[^\d]/g, '');
-    // Aplica máscara: DD/MM/AAAA
-    return date
-      .substring(0, 8)
-      .replace(/(\d{2})(\d{2})(\d{4})/, '$1/$2/$3')
-      .replace(/(\d{2}\/\d{2}\/)(.*)$/, '$1$2');
-  },
-  
-  // Formatador para nomes (remove números)
-  NOME: (value) => {
-    if (!value) return '';
-    // Remove todos os números, mantém apenas letras, espaços e alguns caracteres especiais
-    return value.replace(/[0-9]/g, '');
   }
 };
 
@@ -207,22 +164,42 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
     }
   }, [alert]);
 
-  // Função modificada para aplicar formatação enquanto o usuário digita
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
+  // Função para lidar com alterações nos campos Cleave
+  const handleCleaveChange = (e) => {
+    const { name, rawValue, value } = e.target;
     
-    // Aplica formatador se existir para o campo
-    if (formatters[name]) {
-      const formattedValue = formatters[name](value);
-      e.target.value = formattedValue;
+    // Cria um evento sintético para ser compatível com o handleChange original
+    const syntheticEvent = {
+      target: {
+        name,
+        value,
+        rawValue
+      }
+    };
+    
+    // Chama a função handleChange original
+    handleChange(syntheticEvent);
+    
+    // Valida o campo se o formulário já foi validado
+    if (formValidated && validations[name]) {
+      const isValid = validations[name](value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: isValid ? null : true
+      }));
     }
+  };
+
+  // Função para campos que não usam Cleave
+  const handleRegularChange = (e) => {
+    const { name, value } = e.target;
     
     // Chama a função handleChange original
     handleChange(e);
     
     // Valida o campo se o formulário já foi validado
     if (formValidated && validations[name]) {
-      const isValid = validations[name](e.target.value);
+      const isValid = validations[name](value);
       setValidationErrors(prev => ({
         ...prev,
         [name]: isValid ? null : true
@@ -335,7 +312,7 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
   };
 
   const inputStyle =
-    'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[100%] focus:outline-none focus:border-[#00AE71] text-black';
+    'h-[45px] rounded-[10px] border border-gray-300 px-[20px] w-full focus:outline-none focus:border-[#00AE71] text-black';
 
   return (
     <div className="space-y-4 relative">
@@ -358,7 +335,7 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
           type="text"
           required
           value={formData.NOME || ''}
-          onChange={handleFormChange}
+          onChange={handleRegularChange}
           className={`${inputStyle} ${isFieldInvalid('NOME') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Digite seu nome completo"
         />
@@ -372,17 +349,17 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
         <label className="block text-sm mb-1">
           RG
         </label>
-        <input
+        <Cleave
           name="RG"
-          type="text"
           required
           value={formData.RG || ''}
-          onChange={handleFormChange}
+          onChange={handleCleaveChange}
           className={`${inputStyle} ${isFieldInvalid('RG') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="Digite seu RG"
-          maxLength={12}
-          inputMode="numeric"
-          pattern="[0-9]*"
+          options={{
+            numericOnly: true,
+            blocks: [12]
+          }}
         />
         {isFieldInvalid('RG') && (
           <p className="text-xs text-red-500 mt-1">RG inválido. Deve ter pelo menos 7 dígitos</p>
@@ -394,15 +371,18 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
         <label className="block text-sm mb-1">
           CPF
         </label>
-        <input
+        <Cleave
           name="CPF"
-          type="text"
           required
           value={formData.CPF || ''}
-          onChange={handleFormChange}
+          onChange={handleCleaveChange}
           className={`${inputStyle} ${isFieldInvalid('CPF') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="000.000.000-00"
-          maxLength={14}
+          options={{
+            delimiters: ['.', '.', '-'],
+            blocks: [3, 3, 3, 2],
+            numericOnly: true
+          }}
         />
         {isFieldInvalid('CPF') && (
           <p className="text-xs text-red-500 mt-1">CPF inválido</p>
@@ -415,14 +395,17 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
           Data de Nascimento
         </label>
         <div className="relative">
-          <input
+          <Cleave
             name="NASCIMENTO"
-            type="text"
             required
             value={formData.NASCIMENTO || ''}
-            onChange={handleFormChange}
+            onChange={handleCleaveChange}
             className={`${inputStyle} pr-12 ${isFieldInvalid('NASCIMENTO') ? 'border-red-500 bg-red-50' : ''}`}
             placeholder="DD/MM/AAAA"
+            options={{
+              date: true,
+              datePattern: ['d', 'm', 'Y']
+            }}
           />
           <button 
             type="button"
@@ -442,7 +425,7 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
           />
         </div>
         {isFieldInvalid('NASCIMENTO') && (
-          <p className="text-xs text-red-500 mt-1">Data de nascimento inválida. Você deve ter pelo menos 18 anos</p>
+          <p className="text-xs text-red-500 mt-1">Data de nascimento inválida</p>
         )}
       </div>
 
@@ -456,7 +439,7 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
           type="email"
           required
           value={formData.EMAIL || ''}
-          onChange={handleFormChange}
+          onChange={handleRegularChange}
           className={`${inputStyle} ${isFieldInvalid('EMAIL') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="exemplo@email.com"
         />
@@ -471,15 +454,18 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
           <label className="block text-sm mb-1">
             Telefone 1
           </label>
-          <input
+          <Cleave
             name="TELEFONE1"
-            type="tel"
             required
             value={formData.TELEFONE1 || ''}
-            onChange={handleFormChange}
+            onChange={handleCleaveChange}
             className={`${inputStyle} ${isFieldInvalid('TELEFONE1') ? 'border-red-500 bg-red-50' : ''}`}
-            placeholder="(00) 00000-0000"
-            maxLength={15}
+            placeholder="(55) 55555-5555"
+            options={{
+              delimiters: ['(', ') ', '-'],
+              blocks: [0, 2, 5, 4],
+              numericOnly: true
+            }}
           />
           {isFieldInvalid('TELEFONE1') && (
             <p className="text-xs text-red-500 mt-1">Telefone inválido</p>
@@ -488,14 +474,17 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
 
         <div className="text-gray-500 focus-within:text-black">
           <label className="block text-sm mb-1">Telefone 2</label>
-          <input
+          <Cleave
             name="TELEFONE2"
-            type="tel"
             value={formData.TELEFONE2 || ''}
-            onChange={handleFormChange}
+            onChange={handleCleaveChange}
             className={`${inputStyle} ${isFieldInvalid('TELEFONE2') ? 'border-red-500 bg-red-50' : ''}`}
-            placeholder="(00) 00000-0000"
-            maxLength={15}
+            placeholder="(55) 55555-5555"
+            options={{
+              delimiters: ['(', ') ', '-'],
+              blocks: [0, 2, 5, 4],
+              numericOnly: true
+            }}
           />
           {isFieldInvalid('TELEFONE2') && (
             <p className="text-xs text-red-500 mt-1">Telefone inválido</p>

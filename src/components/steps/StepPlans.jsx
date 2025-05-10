@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import Cleave from 'cleave.js/react';
 import SignatureCanvas from '../SignatureCanvas';
 import CustomAlert from '../CustomAlert';
-import IconData from '../icons/IconData'; // Supondo que este ícone exista
+import IconData from '../icons/IconData'; 
 
-  // Funções de validação
+// Funções de validação
 const validations = {
   // Validação de CPF
   CPF: (value) => {
@@ -91,63 +92,6 @@ const validations = {
   }
 };
 
-  // Função para formatar valores
-const formatters = {
-  CPF: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    const cpf = value.replace(/[^\d]/g, '');
-    // Aplica máscara: 000.000.000-00
-    return cpf
-      .substring(0, 11)
-      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      .replace(/(-\d{2})?$/, '$1');
-  },
-  
-  NASCIMENTO: (value) => {
-    if (!value) return '';
-    // Remove caracteres não numéricos
-    const date = value.replace(/[^\d]/g, '');
-    // Aplica máscara: DD/MM/AAAA
-    return date
-      .substring(0, 8)
-      .replace(/(\d{2})(\d{2})(\d{4})/, '$1/$2/$3')
-      .replace(/(\d{2}\/\d{2}\/)(.*)$/, '$1$2');
-  },
-  
-  VALOR: (value) => {
-    // Se estiver vazio, retorna vazio
-    if (!value) return '';
-    
-    // Se começar com R$, remove para fazer a formatação
-    let numericValue = value.replace(/^R\$\s?/, '');
-    
-    // Remove tudo exceto números e vírgula
-    numericValue = numericValue.replace(/[^\d,]/g, '');
-    
-    // Se houver mais de uma vírgula, mantém apenas a última
-    if ((numericValue.match(/,/g) || []).length > 1) {
-      const parts = numericValue.split(',');
-      numericValue = parts.slice(0, -1).join('') + ',' + parts.slice(-1);
-    }
-    
-    // Se for um valor válido, formata como moeda
-    if (numericValue) {
-      // Adiciona R$ no início
-      return `R$ ${numericValue}`;
-    } else {
-      return 'R$ ';
-    }
-  },
-  
-  // Formatador para nomes (remove números)
-  NOME: (value) => {
-    if (!value) return '';
-    // Remove todos os números, mantém apenas letras, espaços e alguns caracteres especiais
-    return value.replace(/[0-9]/g, '');
-  }
-};
-
 export default function StepPlans({ 
   formData, 
   handleChange, 
@@ -211,22 +155,42 @@ export default function StepPlans({
     handleDependentsChange(dependents);
   }, [dependents]);
 
-  // Função modificada para aplicar formatação enquanto o usuário digita
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
+  // Função para lidar com alterações nos campos Cleave
+  const handleCleaveChange = (e) => {
+    const { name, rawValue, value } = e.target;
     
-    // Aplica formatador se existir para o campo
-    if (formatters[name]) {
-      const formattedValue = formatters[name](value);
-      e.target.value = formattedValue;
+    // Cria um evento sintético para ser compatível com o handleChange original
+    const syntheticEvent = {
+      target: {
+        name,
+        value,
+        rawValue
+      }
+    };
+    
+    // Chama a função handleChange original
+    handleChange(syntheticEvent);
+    
+    // Valida o campo se o formulário já foi validado
+    if (formValidated && validations[name]) {
+      const isValid = validations[name](value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: isValid ? null : true
+      }));
     }
+  };
+
+  // Função para campos que não usam Cleave
+  const handleRegularChange = (e) => {
+    const { name, value } = e.target;
     
     // Chama a função handleChange original
     handleChange(e);
     
     // Valida o campo se o formulário já foi validado
     if (formValidated && validations[name]) {
-      const isValid = validations[name](e.target.value);
+      const isValid = validations[name](value);
       setValidationErrors(prev => ({
         ...prev,
         [name]: isValid ? null : true
@@ -260,16 +224,9 @@ export default function StepPlans({
     setDependentErrors(newErrors);
   };
 
-  const updateDependent = (index, field, value) => {
-    // Aplica formatação para CPF e data de nascimento
-    if (field === 'CPF' || field === 'NASCIMENTO') {
-      value = formatters[field](value);
-    }
-    
-    // Aplica formatação para nome (remove números)
-    if (field === 'NOME') {
-      value = formatters.NOME(value);
-    }
+  // Função para atualizar dependente com formatação usando Cleave
+  const handleDependentCleaveChange = (index, field, e) => {
+    const { rawValue, value } = e.target;
     
     const newDependents = [...dependents];
     newDependents[index] = { ...newDependents[index], [field]: value };
@@ -283,6 +240,36 @@ export default function StepPlans({
         isValid = !!value.trim(); // Nome válido se não for vazio após trim
       } else if (validations[field]) {
         isValid = validations[field](value);
+      }
+      
+      const newErrors = [...dependentErrors];
+      newErrors[index] = { ...newErrors[index], [field]: !isValid };
+      setDependentErrors(newErrors);
+    }
+  };
+
+  // Função para atualizar campos de dependente que não usam Cleave
+  const handleDependentRegularChange = (index, field, e) => {
+    const { value } = e.target;
+    
+    // Aplica formatação para nome (remove números)
+    let processedValue = value;
+    if (field === 'NOME') {
+      processedValue = value.replace(/[0-9]/g, '');
+    }
+    
+    const newDependents = [...dependents];
+    newDependents[index] = { ...newDependents[index], [field]: processedValue };
+    setDependents(newDependents);
+    
+    // Valida o campo se o formulário já foi validado
+    if (formValidated) {
+      let isValid = true;
+      
+      if (field === 'NOME') {
+        isValid = !!processedValue.trim(); // Nome válido se não for vazio após trim
+      } else if (validations[field]) {
+        isValid = validations[field](processedValue);
       }
       
       const newErrors = [...dependentErrors];
@@ -314,7 +301,17 @@ export default function StepPlans({
     const formattedDate = formatDateFromCalendar(isoDate);
     
     // Atualiza o valor no array de dependentes
-    updateDependent(index, 'NASCIMENTO', formattedDate);
+    const newDependents = [...dependents];
+    newDependents[index] = { ...newDependents[index], NASCIMENTO: formattedDate };
+    setDependents(newDependents);
+    
+    // Valida o campo
+    if (formValidated) {
+      const isValid = validations.NASCIMENTO(formattedDate);
+      const newErrors = [...dependentErrors];
+      newErrors[index] = { ...newErrors[index], NASCIMENTO: !isValid };
+      setDependentErrors(newErrors);
+    }
   };
 
   const validateAndSubmit = (e) => {
@@ -394,7 +391,8 @@ export default function StepPlans({
     return validationErrors[fieldName];
   };
 
-  const inputStyle = 'h-[55px] rounded-[10px] border border-gray-300 px-[20px] w-full max-w-[550px] focus:outline-none focus:border-[#00AE71] text-black';
+  const inputStyle = 'h-[45px] rounded-[10px] border border-gray-300 px-[20px] w-full focus:outline-none focus:border-[#00AE71] text-black';
+  ;
 
   return (
     <div className="space-y-6 relative">
@@ -411,14 +409,21 @@ export default function StepPlans({
         <label className="block text-sm mb-1">
           Valor
         </label>
-        <input
+        <Cleave
           name="VALOR"
-          type="text"
           required
           value={formData.VALOR || ''}
-          onChange={handleFormChange}
+          onChange={handleCleaveChange}
           className={`${inputStyle} ${isFieldInvalid('VALOR') ? 'border-red-500 bg-red-50' : ''}`}
           placeholder="R$ 0,00"
+          options={{
+            numeral: true,
+            numeralThousandsGroupStyle: 'thousand',
+            prefix: 'R$ ',
+            rawValueTrimPrefix: true,
+            numeralDecimalMark: ',',
+            delimiter: '.'
+          }}
         />
         {isFieldInvalid('VALOR') && (
           <p className="text-xs text-red-500 mt-1">Por favor, insira um valor válido</p>
@@ -519,7 +524,7 @@ export default function StepPlans({
                   <input
                     type="text"
                     value={dependent.NOME || ''}
-                    onChange={(e) => updateDependent(index, 'NOME', e.target.value)}
+                    onChange={(e) => handleDependentRegularChange(index, 'NOME', e)}
                     className={`${inputStyle} ${isDependentFieldInvalid(index, 'NOME') ? 'border-red-500 bg-red-50' : ''}`}
                     placeholder="Nome completo"
                   />
@@ -532,13 +537,16 @@ export default function StepPlans({
                   <label className="block text-sm mb-0.5">
                     CPF
                   </label>
-                  <input
-                    type="text"
+                  <Cleave
                     value={dependent.CPF || ''}
-                    onChange={(e) => updateDependent(index, 'CPF', e.target.value)}
+                    onChange={(e) => handleDependentCleaveChange(index, 'CPF', e)}
                     className={`${inputStyle} ${isDependentFieldInvalid(index, 'CPF') ? 'border-red-500 bg-red-50' : ''}`}
                     placeholder="000.000.000-00"
-                    maxLength={14}
+                    options={{
+                      delimiters: ['.', '.', '-'],
+                      blocks: [3, 3, 3, 2],
+                      numericOnly: true
+                    }}
                   />
                   {isDependentFieldInvalid(index, 'CPF') && (
                     <p className="text-xs text-red-500 mt-1">CPF inválido</p>
@@ -550,12 +558,15 @@ export default function StepPlans({
                     Data de Nascimento
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <Cleave
                       value={dependent.NASCIMENTO || ''}
-                      onChange={(e) => updateDependent(index, 'NASCIMENTO', e.target.value)}
+                      onChange={(e) => handleDependentCleaveChange(index, 'NASCIMENTO', e)}
                       className={`${inputStyle} pr-12 ${isDependentFieldInvalid(index, 'NASCIMENTO') ? 'border-red-500 bg-red-50' : ''}`}
                       placeholder="DD/MM/AAAA"
+                      options={{
+                        date: true,
+                        datePattern: ['d', 'm', 'Y']
+                      }}
                     />
                     <button 
                       type="button"

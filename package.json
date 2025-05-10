@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cleave.js": "^1.6.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.10.4",
     "pdf-lib": "^1.17.1",
