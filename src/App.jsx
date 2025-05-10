@@ -248,8 +248,6 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Alerta de servidor offline */}
-      {!serverStatus.isOnline && !serverStatus.isChecking && <ServerOfflineAlert />}
       
       {/* Lado esquerdo - Imagem */}
       <div className="hidden md:block fixed top-0 left-0 h-screen w-1/2 bg-[#00AE71] z-10">
