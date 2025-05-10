@@ -29,7 +29,9 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5500',
-  'https://pdf-from.vercel.app'
+  'https://pdf-from.vercel.app',
+  'https://pdf-from.onrender.com',
+  'https://www.pdf-from.vercel.app'
 ];
 
 
