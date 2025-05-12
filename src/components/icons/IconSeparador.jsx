@@ -1,4 +1,4 @@
-const IconSeparador = ({ className = 'w-3 h-3', color = 'currentColor' }) => (
+const IconSeparador = ({ className = "w-3 h-3", color = "currentColor" }) => (
   <svg
     className={className}
     width="11"

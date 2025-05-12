@@ -137,7 +137,7 @@ export const CONTRACT_FILES = {
       EMAIL: { x: 110, y: 218 },
       DATA: { x: 360, y: 193 },
       SIGN: { x: 92, y: 130 },
-      VALOR: { x: 155, y: 490 }
+      VALOR: { x: 155, y: 500 }
     }
   },
   vitalmed: {
@@ -177,7 +177,7 @@ export const CONTRACT_FILES = {
       FAMILIAR6_NASCIMENTO: { x: 315, y: 622, page: 1 },
       FAMILIAR6_CPF: { x: 435, y: 622, page: 1 },
       DATA: { x: 70, y: 290, page: 1 },
-      SIGN: { x: 70, y: 200, page: 1 },
+      SIGN: { x: 70, y: 215, page: 1 },
     }
   }
 };
