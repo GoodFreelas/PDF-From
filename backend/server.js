@@ -69,15 +69,16 @@ app.use('/', express.static(path.join(__dirname, 'public')));
 
 /* ─────────────────────────── Nodemailer ──────────────────────────────── */
 const transporter = nodemailer.createTransport({
-  host: 'smtpi.ampare.org.br',
-  port: 587,
-  secure: true,
+  host: 'smtp.seuservidor.com',
+  port: 587,  // Tente mudar para 465 se estiver usando SSL
+  secure: false,  // Mude para 'true' se usar porta 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD
   },
   tls: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false, // Apenas para testes - remova em produção
+    minVersion: 'TLSv1.2' // Especifique uma versão mínima do TLS
   }
 });
 
