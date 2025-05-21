@@ -31,7 +31,8 @@ const allowedOrigins = [
   'http://localhost:5500',
   'https://pdf-from.vercel.app',
   'https://pdf-from.onrender.com',
-  'https://www.pdf-from.vercel.app'
+  'https://www.pdf-from.vercel.app',
+  'https://ampare.org.br'
 ];
 
 
@@ -68,10 +69,15 @@ app.use('/', express.static(path.join(__dirname, 'public')));
 
 /* ─────────────────────────── Nodemailer ──────────────────────────────── */
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtpi.ampare.org.br',
+  port: 587,
+  secure: true,
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASS
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
