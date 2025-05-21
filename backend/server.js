@@ -69,7 +69,7 @@ app.use('/', express.static(path.join(__dirname, 'public')));
 
 /* ─────────────────────────── Nodemailer ──────────────────────────────── */
 const transporter = nodemailer.createTransport({
-  host: 'smtp.seuservidor.com',
+  host: 'smtpi.ampare.org.br',
   port: 587,  // Tente mudar para 465 se estiver usando SSL
   secure: false,  // Mude para 'true' se usar porta 465
   auth: {
@@ -458,9 +458,9 @@ app.post('/generate-pdfs', async (req, res) => {
 /* ───────────────────────── helper para e-mail ─────────────────────────── */
 async function sendEmailWithAttachments(destino, anexos, nome) {
   await transporter.sendMail({
-    from: `AMPARE <${process.env.GMAIL_USER}>`,
+    from: `AMPARE <${process.env.SMTP_USER}>`,
     to: destino,
-    cc: process.env.GMAIL_USER,
+    cc: process.env.SMTP_USER,
     subject: 'Seus contratos AMPARE',
     html: `<h2>Olá ${nome}</h2><p>Seguem anexos os contratos solicitados.</p>`,
     attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
