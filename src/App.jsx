@@ -12,7 +12,7 @@ import IconProfessional from "./components/icons/IconProfessional";
 import IconSeparador from "./components/icons/IconSeparador";
 
 // URL base da API
-const API_BASE_URL = "https://pdf-from.onrender.com";
+const API_BASE_URL = "https://ampare-termos.onrender.com";
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -272,7 +272,7 @@ export default function App() {
       {/* Lado esquerdo - Imagem */}
       <div className="hidden md:block fixed top-0 left-0 h-screen w-1/2 bg-[#00AE71] z-10">
         <img
-          src="/bg.png"
+          src="https://ampare.org.br/termos/bg.png"
           alt="AMPARE"
           className="w-full h-full object-cover"
         />
