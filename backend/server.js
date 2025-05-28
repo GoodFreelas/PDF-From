@@ -1,5 +1,5 @@
 /**************************************************************************
- *  server.js — AMPARE PDF-From
+ *  server.js — AMPARE PDF-Form (Versão sem download e email só admin)
  **************************************************************************/
 
 import 'dotenv/config';
@@ -35,7 +35,6 @@ const allowedOrigins = [
   'https://ampare.org.br'
 ];
 
-
 app.use(
   cors({
     origin: (origin, cb) => {
@@ -68,19 +67,26 @@ app.use(
 app.use('/', express.static(path.join(__dirname, 'public')));
 
 /* ─────────────────────────── Nodemailer ──────────────────────────────── */
-const transporter = nodemailer.createTransport({
-  host: 'smtpi.ampare.org.br',
-  port: 587,  // Tente mudar para 465 se estiver usando SSL
-  secure: false,  // Mude para 'true' se usar porta 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false, // Apenas para testes - remova em produção
-    minVersion: 'TLSv1.2' // Especifique uma versão mínima do TLS
-  }
-});
+// Verificar se as credenciais SMTP estão definidas
+if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+  console.warn('⚠️  Credenciais SMTP não configuradas. Email será desabilitado.');
+}
+
+const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
+  ? nodemailer.createTransport({
+    host: 'smtpi.ampare.org.br',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    }
+  })
+  : null;
 
 /* ──────────────────── diretório temporário local ─────────────────────── */
 const tempDir = path.join(__dirname, 'temp');
@@ -208,7 +214,6 @@ app.post('/api/pre-process-check', (req, res) => {
         message: `Contratos inválidos: ${invalidos.join(', ')}`
       });
 
-    // … outras validações …
     res.json({ success: true, contratos: lista });
   } catch (e) {
     console.error('Erro na pré-validação', e);
@@ -226,7 +231,6 @@ app.post('/generate-pdfs', async (req, res) => {
     );
 
     const generated = [];
-    const pdfBuffers = {}; // Para armazenar os buffers dos PDFs gerados
 
     // Função para limpar CPF/RG (remover pontos, traços, espaços)
     const limparDocumento = (doc) => doc ? doc.replace(/[^\d]/g, '') : '';
@@ -235,15 +239,10 @@ app.post('/generate-pdfs', async (req, res) => {
     const desenharCPFComEspaco = (page, cpf, posicaoBase, tamanho, font, espacamentoNormal, espacamentoFinal) => {
       const digitos = limparDocumento(cpf);
 
-      // Para CPF (11 dígitos): XXX.XXX.XXX-XX
-      // Queremos espaçar diferentemente os 2 últimos dígitos
-
-      // Se for um CPF válido com 11 dígitos
       if (digitos.length === 11) {
         const primeiros9 = digitos.substring(0, 9);
         const ultimos2 = digitos.substring(9);
 
-        // Desenha os primeiros 9 dígitos com espaçamento normal
         primeiros9.split('').forEach((digito, index) => {
           const x = posicaoBase.x + (index * espacamentoNormal);
           page.drawText(digito, {
@@ -254,9 +253,7 @@ app.post('/generate-pdfs', async (req, res) => {
           });
         });
 
-        // Desenha os últimos 2 dígitos com espaçamento adicional
         ultimos2.split('').forEach((digito, index) => {
-          // Posição base + espaço dos 9 primeiros + espaço adicional + espaço normal entre os últimos dígitos
           const x = posicaoBase.x + (9 * espacamentoNormal) + espacamentoFinal + (index * espacamentoNormal);
           page.drawText(digito, {
             x,
@@ -266,7 +263,6 @@ app.post('/generate-pdfs', async (req, res) => {
           });
         });
       } else {
-        // Se não for um CPF com 11 dígitos, desenha normalmente
         digitos.split('').forEach((digito, index) => {
           const x = posicaoBase.x + (index * espacamentoNormal);
           page.drawText(digito, {
@@ -307,13 +303,10 @@ app.post('/generate-pdfs', async (req, res) => {
       // Processa campos de dependentes se existirem no formData
       if (id === 'vitalmed' && formData.dependents) {
         formData.dependents.forEach((dependent, index) => {
-          // Apenas processa até 6 dependentes (limite do formulário)
           if (index < 6) {
-            // Mapeia os campos do dependente para o formato esperado pelo preenchimento
             const depNum = index + 1;
             formData[`FAMILIAR${depNum}_NOME`] = dependent.NOME || '';
             formData[`FAMILIAR${depNum}_NASCIMENTO`] = dependent.NASCIMENTO || '';
-            // CPF será tratado separadamente
           }
         });
       }
@@ -322,15 +315,12 @@ app.post('/generate-pdfs', async (req, res) => {
       let formDataClone = { ...formData };
 
       if (id === 'vitalmed') {
-        // Salve os valores originais de CPF e RG
         const cpfOriginal = formDataClone.CPF;
         const rgOriginal = formDataClone.RG;
 
-        // Remova CPF e RG do formData para evitar o processamento padrão
         delete formDataClone.CPF;
         delete formDataClone.RG;
 
-        // Preenche texto nos campos do PDF (exceto CPF e RG no vitalmed)
         Object.entries(formDataClone).forEach(([k, v]) => {
           const pos = positions[k];
           if (!v || !pos) return;
@@ -341,7 +331,6 @@ app.post('/generate-pdfs', async (req, res) => {
           });
         });
 
-        // Desenhe CPF com espaçamento especial para os últimos 2 dígitos
         if (cpfOriginal) {
           desenharCPFComEspaco(
             pages[0],
@@ -349,12 +338,11 @@ app.post('/generate-pdfs', async (req, res) => {
             { x: positions.CPF.x, y: positions.CPF.y },
             15,
             helv,
-            18, // espaçamento normal entre dígitos
-            10  // espaçamento extra antes dos dois últimos dígitos
+            18,
+            10
           );
         }
 
-        // Desenhe RG com espaçamento regular
         if (rgOriginal) {
           desenharDigitosComEspaco(
             pages[0],
@@ -362,11 +350,10 @@ app.post('/generate-pdfs', async (req, res) => {
             { x: positions.RG.x, y: positions.RG.y },
             15,
             helv,
-            18 // espaçamento entre dígitos
+            18
           );
         }
 
-        // Faça o mesmo para CPF dos dependentes, se necessário
         if (formData.dependents) {
           formData.dependents.forEach((dependent, index) => {
             if (index < 6 && dependent.CPF) {
@@ -375,22 +362,20 @@ app.post('/generate-pdfs', async (req, res) => {
               const position = positions[positionKey];
 
               if (position) {
-                // Desenhe CPF dos dependentes com o mesmo espaçamento especial
                 desenharCPFComEspaco(
                   pages[position.page || 0],
                   dependent.CPF,
                   { x: position.x, y: position.y },
                   15,
                   helv,
-                  18, // espaçamento normal
-                  10  // espaçamento extra
+                  18,
+                  10
                 );
               }
             }
           });
         }
       } else {
-        // Para outros contratos, use o processamento padrão para todos os campos
         Object.entries(formDataClone).forEach(([k, v]) => {
           const pos = positions[k];
           if (!v || !pos) return;
@@ -416,7 +401,7 @@ app.post('/generate-pdfs', async (req, res) => {
       // Salva o PDF em bytes
       const pdfBytes = await pdfDoc.save();
 
-      // Nome do arquivo para download e email
+      // Nome do arquivo para anexar ao email
       const filename = `${label.replace(/\s+/g, '_')}-${formData.NOME || 'Contrato'}.pdf`;
 
       // Salva temporariamente no servidor para anexar ao email
@@ -429,42 +414,103 @@ app.post('/generate-pdfs', async (req, res) => {
         filename,
         label
       });
-
-      // Armazena o buffer como base64 para enviar ao cliente para download
-      pdfBuffers[filename] = Buffer.from(pdfBytes).toString('base64');
     }
 
     if (!generated.length)
       return res.status(400).json({ success: false, message: 'Nenhum PDF gerado' });
 
-    // Envia os PDFs por email
-    await sendEmailWithAttachments(formData.EMAIL, generated, formData.NOME);
+    // Envia os PDFs APENAS para o email do administrador (se configurado)
+    const emailResult = await sendEmailToAdmin(generated, formData);
 
-    // Responde com sucesso e envia os PDFs gerados para download automático no frontend
+    // Se o email foi enviado com sucesso, exclui os arquivos imediatamente
+    if (emailResult.emailSent) {
+      console.log('🗑️  Excluindo arquivos temporários após envio bem-sucedido do email...');
+      generated.forEach(file => {
+        try {
+          fs.unlinkSync(file.path); // Exclusão síncrona imediata
+          console.log(`✅ Arquivo excluído: ${file.filename}`);
+        } catch (err) {
+          console.error(`❌ Erro ao excluir ${file.filename}:`, err.message);
+        }
+      });
+    } else {
+      // Se o email falhou, mantém os arquivos por 10 minutos como backup
+      console.log('⚠️  Email não foi enviado. Mantendo arquivos temporários por 10 minutos...');
+      setTimeout(() => {
+        generated.forEach(file => {
+          try {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+              console.log(`🗑️  Arquivo de backup excluído: ${file.filename}`);
+            }
+          } catch (err) {
+            console.error(`❌ Erro ao excluir backup ${file.filename}:`, err.message);
+          }
+        });
+      }, 10 * 60 * 1000); // 10 minutos
+    }
+
+    // Responde com sucesso (sem enviar PDFs para download)
     res.json({
       success: true,
-      message: `${generated.length} PDFs enviados para ${formData.EMAIL}`,
-      pdfs: pdfBuffers
+      message: emailResult.emailSent
+        ? `${generated.length} PDFs enviados para o administrador e arquivos temporários excluídos`
+        : `${generated.length} PDFs gerados. ${emailResult.error ? 'Erro no email: ' + emailResult.error : 'Email não configurado'}`
     });
 
-    // Limpa arquivos temporários depois de 1 minuto
-    setTimeout(() => generated.forEach(f => fs.unlink(f.path, () => { })), 60_000);
+    // Não precisa mais do setTimeout aqui, pois os arquivos são excluídos imediatamente após o envio
+    // ou mantidos por 10 minutos se o email falhar
   } catch (err) {
     console.error('Erro em /generate-pdfs', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-/* ───────────────────────── helper para e-mail ─────────────────────────── */
-async function sendEmailWithAttachments(destino, anexos, nome) {
-  await transporter.sendMail({
-    from: `AMPARE <${process.env.SMTP_USER}>`,
-    to: destino,
-    cc: process.env.SMTP_USER,
-    subject: 'Seus contratos AMPARE',
-    html: `<h2>Olá ${nome}</h2><p>Seguem anexos os contratos solicitados.</p>`,
-    attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
-  });
+/* ───────────────────────── helper para e-mail APENAS ADMIN ─────────────────────────────── */
+async function sendEmailToAdmin(anexos, formData) {
+  // Verificar se o transporter está configurado
+  if (!transporter) {
+    console.warn('⚠️  Email não configurado. PDFs salvos apenas no servidor.');
+    return { emailSent: false };
+  }
+
+  try {
+    // Email fixo do administrador - substitua pelo seu email
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@ampare.org.br';
+
+    console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
+
+    // Verificar se temos um destinatário válido
+    if (!ADMIN_EMAIL || ADMIN_EMAIL.trim() === '') {
+      throw new Error('Email do administrador não configurado');
+    }
+
+    await transporter.sendMail({
+      from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
+      to: ADMIN_EMAIL,
+      subject: `Nova Adesão - ${formData.NOME}`,
+      html: `
+        <h2>Nova Adesão Recebida</h2>
+        <p><strong>Nome:</strong> ${formData.NOME}</p>
+        <p><strong>Email do Cliente:</strong> ${formData.EMAIL}</p>
+        <p><strong>CPF:</strong> ${formData.CPF}</p>
+        <p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>
+        <p><strong>Empresa:</strong> ${formData.EMPRESA}</p>
+        <p><strong>Contratos Selecionados:</strong></p>
+        <ul>
+          ${anexos.map(a => `<li>${a.label}</li>`).join('')}
+        </ul>
+        <p>Os contratos preenchidos seguem em anexo.</p>
+      `,
+      attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
+    });
+
+    console.log('✅ Email enviado com sucesso para o administrador');
+    return { emailSent: true };
+  } catch (error) {
+    console.error('❌ Erro ao enviar email:', error);
+    return { emailSent: false, error: error.message };
+  }
 }
 
 /* ───────────────────────────── start! ─────────────────────────────────── */

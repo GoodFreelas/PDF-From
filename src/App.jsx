@@ -21,30 +21,23 @@ export default function App() {
   const [done, setDone] = useState(false);
   const [direction, setDirection] = useState(1);
   const sigRef = useRef(null);
-  // Estado para controlar a tentativa de acordar o servidor (sem bloquear o uso do app)
   const [serverWakeupAttempted, setServerWakeupAttempted] = useState(false);
 
   // Efeito para enviar uma requisição "ping" para acordar o servidor na Render
   useEffect(() => {
     const wakeupRenderServer = async () => {
-      if (serverWakeupAttempted) return; // Evitar múltiplas tentativas
+      if (serverWakeupAttempted) return;
 
       try {
         console.log("Tentando acordar o servidor na Render...");
         setServerWakeupAttempted(true);
 
-        // Usando o método que não bloqueia o uso do aplicativo
-        // e não depende de CORS para funcionar
         const abortController = new AbortController();
-        const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => abortController.abort(), 10000);
 
-        // Fetch que não bloqueia o uso do app mesmo se falhar
         fetch(`${API_BASE_URL}/api/check-status`, {
           method: "GET",
           signal: abortController.signal,
-          // Remover credentials para evitar problemas de CORS
-          // credentials: 'include',
-          // Modo 'no-cors' permite o request, mas não a resposta
           mode: "no-cors",
         })
           .then((response) => {
@@ -52,7 +45,6 @@ export default function App() {
             clearTimeout(timeoutId);
           })
           .catch((err) => {
-            // Falha silenciosa - não afeta o uso do app
             if (err.name !== "AbortError") {
               console.log(
                 "Erro ao acordar o servidor, mas o app continuará funcionando:",
@@ -65,12 +57,10 @@ export default function App() {
             }
           });
       } catch (error) {
-        // Falha silenciosa - não afeta o uso do app
         console.log("Erro ao tentar acordar o servidor:", error);
       }
     };
 
-    // Tenta acordar o servidor na montagem do componente
     wakeupRenderServer();
   }, [serverWakeupAttempted]);
 
@@ -111,13 +101,13 @@ export default function App() {
 
   // Função para avançar para a próxima etapa
   const nextStep = () => {
-    setDirection(1); // Definir direção para frente
+    setDirection(1);
     setCurrentStep((prev) => Math.min(prev + 1, 4));
   };
 
   // Função para voltar para a etapa anterior
   const prevStep = () => {
-    setDirection(-1); // Definir direção para trás
+    setDirection(-1);
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
@@ -126,7 +116,7 @@ export default function App() {
     setFormData((prev) => ({ ...prev, selectedPlans: plans }));
   };
 
-  // Função para lidar com o envio final do formulário com sistema de retry
+  // Função para lidar com o envio final do formulário (SEM DOWNLOAD)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setProcessing(true);
@@ -156,7 +146,6 @@ export default function App() {
         try {
           attempts++;
 
-          // Se não for a primeira tentativa, mostra feedback
           if (attempts > 1) {
             console.log(`Tentativa ${attempts} de ${maxAttempts}...`);
           }
@@ -165,8 +154,6 @@ export default function App() {
           const resp = await fetch(`${API_BASE_URL}/generate-pdfs`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            // Remover credentials para evitar problemas de CORS
-            // credentials: 'include',
             body: JSON.stringify({
               formData,
               signatureData: sigDataUrl,
@@ -186,11 +173,10 @@ export default function App() {
           success = true;
         } catch (error) {
           if (attempts >= maxAttempts) {
-            throw error; // Re-lança o erro se esgotar as tentativas
+            throw error;
           }
 
-          // Espera um pouco antes de tentar novamente (backoff exponencial)
-          const delay = 2000 * Math.pow(2, attempts - 1); // 2s, 4s, 8s...
+          const delay = 2000 * Math.pow(2, attempts - 1);
           console.log(
             `Falha na tentativa ${attempts}. Tentando novamente em ${
               delay / 1000
@@ -200,32 +186,7 @@ export default function App() {
         }
       }
 
-      // Se temos PDFs no resultado, fazemos o download
-      if (responseData?.pdfs) {
-        // Para cada PDF retornado pelo servidor, cria um link para download
-        Object.entries(responseData.pdfs).forEach(([filename, base64Data]) => {
-          // Converte base64 para blob
-          const binaryString = window.atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const blob = new Blob([bytes], { type: "application/pdf" });
-
-          // Cria um link para download e clica automaticamente
-          const downloadLink = document.createElement("a");
-          downloadLink.href = URL.createObjectURL(blob);
-          downloadLink.download = filename;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-
-          // Libera o objeto URL criado
-          setTimeout(() => URL.revokeObjectURL(downloadLink.href), 1000);
-        });
-      }
-
-      // Mostra a mensagem de sucesso
+      // Mostra a mensagem de sucesso (sem fazer download de PDFs)
       setDone(true);
     } catch (err) {
       console.error("Erro no processamento do formulário:", err);
@@ -272,7 +233,7 @@ export default function App() {
       {/* Lado esquerdo - Imagem */}
       <div className="hidden md:block fixed top-0 left-0 h-screen w-1/2 bg-[#00AE71] z-10">
         <img
-          src="https://ampare.org.br/termos/bg.png"
+          src="./bg.png"
           alt="AMPARE"
           className="w-full h-full object-cover"
         />
@@ -286,7 +247,6 @@ export default function App() {
               Adesão a benefícios
             </h1>
 
-            {/* Menu de Steps */}
             {/* Menu de Steps */}
             <div className="mt-4 pb-2">
               <div className="flex items-center w-full">
