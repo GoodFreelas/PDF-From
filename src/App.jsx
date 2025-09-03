@@ -12,7 +12,7 @@ import IconProfessional from "./components/icons/IconProfessional";
 import IconSeparador from "./components/icons/IconSeparador";
 
 // URL base da API
-const API_BASE_URL = "https://ampare-termos.onrender.com";
+const API_BASE_URL = "http://localhost:3000";
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
