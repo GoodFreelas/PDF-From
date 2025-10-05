@@ -1,70 +1,52 @@
-import { useState, useRef, useEffect } from "react";
+// ================================
+// Imports
+// ================================
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Componentes internos
 import StepPersonal from "./components/steps/StepPersonal";
 import StepAddress from "./components/steps/StepAddress";
 import StepProfessional from "./components/steps/StepProfessional";
 import StepPlans from "./components/steps/StepPlans";
 import SuccessMessage from "./components/SuccessMessage";
+
+// Ícones
 import IconAddress from "./components/icons/IconAddress";
 import IconPersonal from "./components/icons/IconPersonal";
 import IconPlans from "./components/icons/IconPlans";
 import IconProfessional from "./components/icons/IconProfessional";
 import IconSeparador from "./components/icons/IconSeparador";
 
-// URL base da API
-const API_BASE_URL = "http://localhost:3000";
+// Hooks personalizados
+import { useServerWakeup } from "./hooks/useServerWakeup";
+import { useFormSubmission } from "./hooks/useFormSubmission";
 
+// ================================
+// Constantes e Configurações
+// ================================
+
+/**
+ * Componente principal da aplicação de adesão a benefícios
+ * Gerencia o fluxo multi-step do formulário de adesão
+ * @returns {JSX.Element} - Componente App
+ */
 export default function App() {
+  // ================================
+  // Estados e Hooks
+  // ================================
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({});
-  const [processing, setProcessing] = useState(false);
-  const [done, setDone] = useState(false);
   const [direction, setDirection] = useState(1);
   const sigRef = useRef(null);
-  const [serverWakeupAttempted, setServerWakeupAttempted] = useState(false);
 
-  // Efeito para enviar uma requisição "ping" para acordar o servidor na Render
-  useEffect(() => {
-    const wakeupRenderServer = async () => {
-      if (serverWakeupAttempted) return;
+  // Hooks personalizados
+  const { serverWakeupAttempted } = useServerWakeup();
+  const { processing, done, submitForm } = useFormSubmission();
 
-      try {
-        console.log("Tentando acordar o servidor na Render...");
-        setServerWakeupAttempted(true);
-
-        const abortController = new AbortController();
-        const timeoutId = setTimeout(() => abortController.abort(), 10000);
-
-        fetch(`${API_BASE_URL}/api/check-status`, {
-          method: "GET",
-          signal: abortController.signal,
-          mode: "no-cors",
-        })
-          .then((response) => {
-            console.log("Servidor acordado com sucesso!");
-            clearTimeout(timeoutId);
-          })
-          .catch((err) => {
-            if (err.name !== "AbortError") {
-              console.log(
-                "Erro ao acordar o servidor, mas o app continuará funcionando:",
-                err.message
-              );
-            } else {
-              console.log(
-                "Timeout ao acordar o servidor, mas o app continuará funcionando"
-              );
-            }
-          });
-      } catch (error) {
-        console.log("Erro ao tentar acordar o servidor:", error);
-      }
-    };
-
-    wakeupRenderServer();
-  }, [serverWakeupAttempted]);
-
-  // Dados dos steps
+  // ================================
+  // Dados dos Steps
+  // ================================
   const stepData = [
     {
       id: 1,
@@ -88,38 +70,57 @@ export default function App() {
     },
   ];
 
-  // Função para atualizar os dados do formulário
+  // ================================
+  // Funções Auxiliares
+  // ================================
+
+  /**
+   * Atualiza os dados do formulário
+   * @param {Event} e - Evento de mudança do input
+   */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Função para lidar com mudanças nos dependentes
+  /**
+   * Atualiza os dependentes no formulário
+   * @param {Array} dependents - Array de dependentes
+   */
   const handleDependentsChange = (dependents) => {
     setFormData((prev) => ({ ...prev, dependents }));
   };
 
-  // Função para avançar para a próxima etapa
+  /**
+   * Atualiza os planos selecionados
+   * @param {Array} plans - Array de planos selecionados
+   */
+  const handlePlansChange = (plans) => {
+    setFormData((prev) => ({ ...prev, selectedPlans: plans }));
+  };
+
+  /**
+   * Avança para a próxima etapa
+   */
   const nextStep = () => {
     setDirection(1);
     setCurrentStep((prev) => Math.min(prev + 1, 4));
   };
 
-  // Função para voltar para a etapa anterior
+  /**
+   * Volta para a etapa anterior
+   */
   const prevStep = () => {
     setDirection(-1);
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  // Função para atualizar os planos selecionados
-  const handlePlansChange = (plans) => {
-    setFormData((prev) => ({ ...prev, selectedPlans: plans }));
-  };
-
-  // Função para lidar com o envio final do formulário (SEM DOWNLOAD)
+  /**
+   * Lida com o envio final do formulário
+   * @param {Event} e - Evento de submit
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setProcessing(true);
 
     try {
       // Verificações preliminares
@@ -136,70 +137,20 @@ export default function App() {
       // Captura a assinatura como dataURL
       const sigDataUrl = sigRef.current.toDataURL("image/png");
 
-      // Sistema de retry para caso o servidor tenha acordado mas ainda esteja "esquentando"
-      let attempts = 0;
-      const maxAttempts = 3;
-      let success = false;
-      let responseData;
-
-      while (attempts < maxAttempts && !success) {
-        try {
-          attempts++;
-
-          if (attempts > 1) {
-            console.log(`Tentativa ${attempts} de ${maxAttempts}...`);
-          }
-
-          // Tenta enviar os dados
-          const resp = await fetch(`${API_BASE_URL}/generate-pdfs`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              formData,
-              signatureData: sigDataUrl,
-              contratos: selectedPlans.join(","),
-            }),
-          });
-
-          if (!resp.ok) {
-            const payload = await resp.json().catch(() => ({}));
-            throw new Error(
-              payload.message || `Erro no servidor (${resp.status})`
-            );
-          }
-
-          // Processa a resposta do servidor
-          responseData = await resp.json();
-          success = true;
-        } catch (error) {
-          if (attempts >= maxAttempts) {
-            throw error;
-          }
-
-          const delay = 2000 * Math.pow(2, attempts - 1);
-          console.log(
-            `Falha na tentativa ${attempts}. Tentando novamente em ${
-              delay / 1000
-            }s...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-
-      // Mostra a mensagem de sucesso (sem fazer download de PDFs)
-      setDone(true);
+      // Submete o formulário usando o hook
+      await submitForm(formData, sigDataUrl, selectedPlans);
     } catch (err) {
       console.error("Erro no processamento do formulário:", err);
       alert(
         "Erro ao processar sua solicitação: " +
           (err.message || "erro desconhecido")
       );
-    } finally {
-      setProcessing(false);
     }
   };
 
-  // Variantes de animação
+  // ================================
+  // Variantes de Animação
+  // ================================
   const pageVariants = {
     initial: (direction) => ({
       x: direction > 0 ? "100%" : "-100%",
@@ -223,11 +174,17 @@ export default function App() {
     }),
   };
 
+  // ================================
+  // Early Returns
+  // ================================
   // Se o processo estiver concluído, exibe a mensagem de sucesso
   if (done) {
     return <SuccessMessage email={formData.EMAIL} />;
   }
 
+  // ================================
+  // JSX Return
+  // ================================
   return (
     <div className="flex min-h-screen">
       {/* Lado esquerdo - Imagem */}

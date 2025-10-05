@@ -1,4 +1,22 @@
+// ================================
+// Imports
+// ================================
+import PropTypes from 'prop-types';
+
+// ================================
+// Componente SuccessMessage
+// ================================
+
+/**
+ * Componente de mensagem de sucesso após submissão
+ * @param {Object} props - Propriedades do componente
+ * @param {string} props.email - Email do usuário
+ * @returns {JSX.Element} - Componente SuccessMessage
+ */
 export default function SuccessMessage({ email }) {
+  // ================================
+  // JSX Return
+  // ================================
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg text-center">
@@ -42,3 +60,10 @@ export default function SuccessMessage({ email }) {
     </div>
   );
 }
+
+// ================================
+// PropTypes
+// ================================
+SuccessMessage.propTypes = {
+  email: PropTypes.string.isRequired,
+};

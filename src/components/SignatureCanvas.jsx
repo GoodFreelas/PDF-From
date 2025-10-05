@@ -1,10 +1,28 @@
+// ================================
+// Imports
+// ================================
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import SignaturePad from 'signature_pad';
+import PropTypes from 'prop-types';
 
+// ================================
+// Componente SignatureCanvas
+// ================================
+
+/**
+ * Componente de canvas para assinatura digital
+ * @param {Object} props - Propriedades do componente
+ * @param {Object} props.canvasProps - Propriedades do canvas
+ * @param {Object} ref - Referência do componente
+ * @returns {JSX.Element} - Componente SignatureCanvas
+ */
 const SignatureCanvas = forwardRef((props, ref) => {
   const canvasRef = useRef(null);
   const padRef = useRef(null);
   
+  // ================================
+  // Effects
+  // ================================
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -30,15 +48,20 @@ const SignatureCanvas = forwardRef((props, ref) => {
     };
   }, []);  
   
-  // Expõe métodos para o componente pai
+  // ================================
+  // Imperative Handle
+  // ================================
   useImperativeHandle(ref, () => ({
     isEmpty: () => padRef.current?.isEmpty(),
     clear: () => padRef.current?.clear(),
     toDataURL: () => padRef.current?.toDataURL('image/png'),
   }));
   
+  // ================================
+  // JSX Return
+  // ================================
   return (
-    <div className=" bg-transparent">
+    <div className="bg-transparent">
       <canvas 
         ref={canvasRef} 
         {...props} 
@@ -48,4 +71,14 @@ const SignatureCanvas = forwardRef((props, ref) => {
   );
 });
 
+// ================================
+// PropTypes
+// ================================
+SignatureCanvas.propTypes = {
+  canvasProps: PropTypes.object,
+};
+
+// ================================
+// Export
+// ================================
 export default SignatureCanvas;

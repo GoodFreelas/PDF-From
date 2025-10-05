@@ -1,4 +1,20 @@
-// Componente de alerta personalizado
+// ================================
+// Imports
+// ================================
+import PropTypes from 'prop-types';
+
+// ================================
+// Componente CustomAlert
+// ================================
+
+/**
+ * Componente de alerta personalizado
+ * @param {Object} props - Propriedades do componente
+ * @param {string} props.message - Mensagem do alerta
+ * @param {string} props.type - Tipo do alerta ('warning', 'error', 'success')
+ * @param {Function} props.onClose - Função para fechar o alerta
+ * @returns {JSX.Element} - Componente CustomAlert
+ */
 const CustomAlert = ({ message, type = 'warning', onClose }) => {
   return (
     <div className="fixed top-16 right-4 z-50 animate-fadeIn">
@@ -49,4 +65,20 @@ const CustomAlert = ({ message, type = 'warning', onClose }) => {
   );
 };
 
-export default CustomAlert
+// ================================
+// PropTypes
+// ================================
+CustomAlert.propTypes = {
+  message: PropTypes.string.isRequired,
+  type: PropTypes.oneOf(['warning', 'error', 'success']),
+  onClose: PropTypes.func.isRequired,
+};
+
+CustomAlert.defaultProps = {
+  type: 'warning',
+};
+
+// ================================
+// Export
+// ================================
+export default CustomAlert;

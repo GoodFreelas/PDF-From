@@ -1,3 +1,19 @@
+// ================================
+// Imports
+// ================================
+import PropTypes from 'prop-types';
+
+// ================================
+// Componente IconAddress
+// ================================
+
+/**
+ * Ícone de endereço
+ * @param {Object} props - Propriedades do componente
+ * @param {string} props.className - Classes CSS do ícone
+ * @param {string} props.color - Cor do ícone
+ * @returns {JSX.Element} - Componente IconAddress
+ */
 const IconAddress = ({ className = 'w-4 h-4', color = 'currentColor' }) => (
   <svg
     className={className}
@@ -16,4 +32,20 @@ const IconAddress = ({ className = 'w-4 h-4', color = 'currentColor' }) => (
   </svg>
 );
 
+// ================================
+// PropTypes
+// ================================
+IconAddress.propTypes = {
+  className: PropTypes.string,
+  color: PropTypes.string,
+};
+
+IconAddress.defaultProps = {
+  className: 'w-4 h-4',
+  color: 'currentColor',
+};
+
+// ================================
+// Export
+// ================================
 export default IconAddress;
