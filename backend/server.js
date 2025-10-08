@@ -83,20 +83,18 @@ const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
     },
     tls: {
       rejectUnauthorized: false,
-      minVersion: 'TLSv1.2'
+      minVersion: 'TLSv1.2',
+      ciphers: 'SSLv3'
     },
-    // Configurações de timeout para produção
-    connectionTimeout: 60000, // 60 segundos
-    greetingTimeout: 30000,   // 30 segundos
-    socketTimeout: 60000,     // 60 segundos
-    // Configurações de pool para melhor performance
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-    rateLimit: 10, // 10 emails por segundo
-    // Configurações de retry
-    retryDelay: 5000, // 5 segundos entre tentativas
-    retryAttempts: 3
+    // Configurações otimizadas para Render
+    connectionTimeout: 30000, // 30 segundos
+    greetingTimeout: 15000,   // 15 segundos
+    socketTimeout: 30000,     // 30 segundos
+    // Desabilitar pool para evitar problemas de conexão
+    pool: false,
+    // Configurações de retry mais agressivas
+    retryDelay: 2000, // 2 segundos entre tentativas
+    retryAttempts: 5
   })
   : null;
 
@@ -233,7 +231,12 @@ app.get('/api/test-smtp', async (_, res) => {
       message: 'Conexão SMTP funcionando',
       smtpConfigured: true,
       host: 'smtpi.ampare.org.br',
-      port: 587
+      port: 587,
+      timeouts: {
+        connection: '30s',
+        greeting: '15s',
+        socket: '30s'
+      }
     });
   } catch (error) {
     console.error('❌ Erro na verificação SMTP:', error);
@@ -245,7 +248,12 @@ app.get('/api/test-smtp', async (_, res) => {
         code: error.code,
         command: error.command,
         message: error.message
-      }
+      },
+      recommendations: [
+        'Verifique se o servidor SMTP está acessível',
+        'Confirme as credenciais SMTP_USER e SMTP_PASSWORD',
+        'Teste a conectividade de rede do Render'
+      ]
     });
   }
 });
@@ -533,17 +541,15 @@ async function sendEmailToAdmin(anexos, formData) {
 
   console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
 
-  // Configurações de retry
-  const maxRetries = 3;
-  const retryDelay = 5000; // 5 segundos
+  // Configurações de retry otimizadas para Render
+  const maxRetries = 5;
+  const retryDelay = 2000; // 2 segundos
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`📧 Tentativa ${attempt}/${maxRetries} de envio de email...`);
 
-      // Verificar conexão antes de enviar
-      await transporter.verify();
-
+      // Não verificar conexão antes (pode causar timeout desnecessário)
       await transporter.sendMail({
         from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
         to: ADMIN_EMAIL,
@@ -576,7 +582,7 @@ async function sendEmailToAdmin(anexos, formData) {
       }
 
       // Se não for timeout ou erro de conexão, não tenta novamente
-      if (error.code !== 'ETIMEDOUT' && error.code !== 'ECONNREFUSED' && error.code !== 'ENOTFOUND') {
+      if (error.code !== 'ETIMEDOUT' && error.code !== 'ECONNREFUSED' && error.code !== 'ENOTFOUND' && error.code !== 'ECONNRESET') {
         console.error('❌ Erro não relacionado à conexão, não tentando novamente');
         return { emailSent: false, error: error.message };
       }
