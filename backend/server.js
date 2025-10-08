@@ -172,47 +172,46 @@ export const CONTRACT_FILES = {
       EMAIL: { x: 110, y: 218 },
       DATA: { x: 360, y: 193 },
       SIGN: { x: 92, y: 130 },
-      VALOR: { x: 155, y: 500 }
+      VALOR: { x: 155, y: 498 }
     }
   },
   vitalmed: {
     label: 'Assistência Familiar (Vitalmed)',
     file: path.join(__dirname, 'public', 'contrato-vitalmed.pdf'),
     positions: {
-      NOME: { x: 100, y: 262 },
-      NASCIMENTO: { x: 115, y: 242 },
-      CPF: { x: 98, y: 212 },
-      RG: { x: 350, y: 212 },
-      RUA: { x: 174, y: 183 },
-      NUMERO: { x: 400, y: 183 },
-      COMPLEMENTO: { x: 130, y: 164 },
-      BAIRRO: { x: 350, y: 164 },
-      CEP: { x: 90, y: 145 },
-      TELEFONE1: { x: 280, y: 145 },
-      TELEFONE2: { x: 444, y: 145 },
-      CIDADE: { x: 160, y: 125 },
+      NOME: { x: 95, y: 195 },
+      NASCIMENTO: { x: 260, y: 195 },
+      CPF: { x: 75, y: 175 },
+      RUA: { x: 105, y: 155 },
+      NUMERO: { x: 360, y: 155 },
+      COMPLEMENTO: { x: 125, y: 138 },
+      BAIRRO: { x: 235, y: 138 },
+      CEP: { x: 75, y: 118 },
+      TELEFONE1: { x: 380, y: 118 },
+      TELEFONE2: { x: 200, y: 118 },
+      CIDADE: { x: 160, y: 100 },
       TELEFONE3: { x: 405, y: 125 },
-      MATRICULA: { x: 170, y: 106 },
-      FAMILIAR1_NOME: { x: 70, y: 685, page: 1 },
-      FAMILIAR1_NASCIMENTO: { x: 315, y: 685, page: 1 },
-      FAMILIAR1_CPF: { x: 435, y: 685, page: 1 },
-      FAMILIAR2_NOME: { x: 70, y: 672, page: 1 },
-      FAMILIAR2_NASCIMENTO: { x: 315, y: 672, page: 1 },
-      FAMILIAR2_CPF: { x: 435, y: 672, page: 1 },
-      FAMILIAR3_NOME: { x: 70, y: 660, page: 1 },
-      FAMILIAR3_NASCIMENTO: { x: 315, y: 660, page: 1 },
-      FAMILIAR3_CPF: { x: 435, y: 660, page: 1 },
-      FAMILIAR4_NOME: { x: 70, y: 646, page: 1 },
-      FAMILIAR4_NASCIMENTO: { x: 315, y: 646, page: 1 },
-      FAMILIAR4_CPF: { x: 435, y: 646, page: 1 },
-      FAMILIAR5_NOME: { x: 70, y: 633, page: 1 },
-      FAMILIAR5_NASCIMENTO: { x: 315, y: 633, page: 1 },
-      FAMILIAR5_CPF: { x: 435, y: 633, page: 1 },
-      FAMILIAR6_NOME: { x: 70, y: 622, page: 1 },
-      FAMILIAR6_NASCIMENTO: { x: 315, y: 622, page: 1 },
-      FAMILIAR6_CPF: { x: 435, y: 622, page: 1 },
-      DATA: { x: 70, y: 290, page: 1 },
-      SIGN: { x: 70, y: 215, page: 1 },
+      MATRICULA: { x: 165, y: 80 },
+      FAMILIAR1_NOME: { x: 70, y: 688, page: 1 },
+      FAMILIAR1_NASCIMENTO: { x: 352, y: 688, page: 1 },
+      FAMILIAR1_CPF: { x: 410, y: 688, page: 1 },
+      FAMILIAR2_NOME: { x: 70, y: 675, page: 1 },
+      FAMILIAR2_NASCIMENTO: { x: 352, y: 675, page: 1 },
+      FAMILIAR2_CPF: { x: 410, y: 675, page: 1 },
+      FAMILIAR3_NOME: { x: 70, y: 664, page: 1 },
+      FAMILIAR3_NASCIMENTO: { x: 352, y: 664, page: 1 },
+      FAMILIAR3_CPF: { x: 410, y: 664, page: 1 },
+      FAMILIAR4_NOME: { x: 70, y: 652, page: 1 },
+      FAMILIAR4_NASCIMENTO: { x: 352, y: 652, page: 1 },
+      FAMILIAR4_CPF: { x: 410, y: 652, page: 1 },
+      FAMILIAR5_NOME: { x: 70, y: 640, page: 1 },
+      FAMILIAR5_NASCIMENTO: { x: 352, y: 640, page: 1 },
+      FAMILIAR5_CPF: { x: 410, y: 640, page: 1 },
+      FAMILIAR6_NOME: { x: 70, y: 626, page: 1 },
+      FAMILIAR6_NASCIMENTO: { x: 352, y: 626, page: 1 },
+      FAMILIAR6_CPF: { x: 410, y: 626, page: 1 },
+      DATA: { x: 108, y: 236, page: 1 },
+      SIGN: { x: 85, y: 180, page: 1 },
     }
   }
 };
@@ -338,10 +337,8 @@ app.post('/generate-pdfs', async (req, res) => {
 
       if (id === 'vitalmed') {
         const cpfOriginal = formDataClone.CPF;
-        const rgOriginal = formDataClone.RG;
 
         delete formDataClone.CPF;
-        delete formDataClone.RG;
 
         Object.entries(formDataClone).forEach(([k, v]) => {
           const pos = positions[k];
@@ -358,21 +355,10 @@ app.post('/generate-pdfs', async (req, res) => {
             pages[0],
             cpfOriginal,
             { x: positions.CPF.x, y: positions.CPF.y },
-            15,
+            10,
             helv,
-            18,
-            10
-          );
-        }
-
-        if (rgOriginal) {
-          desenharDigitosComEspaco(
-            pages[0],
-            rgOriginal,
-            { x: positions.RG.x, y: positions.RG.y },
-            15,
-            helv,
-            18
+            12,
+            6
           );
         }
 
@@ -388,10 +374,10 @@ app.post('/generate-pdfs', async (req, res) => {
                   pages[position.page || 0],
                   dependent.CPF,
                   { x: position.x, y: position.y },
-                  15,
+                  10,
                   helv,
-                  18,
-                  10
+                  12,
+                  6
                 );
               }
             }
