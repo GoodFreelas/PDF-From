@@ -10,7 +10,6 @@ import StepAddress from "./components/steps/StepAddress";
 import StepProfessional from "./components/steps/StepProfessional";
 import StepPlans from "./components/steps/StepPlans";
 import SuccessMessage from "./components/SuccessMessage";
-import ErrorPage from "./components/ErrorPage";
 
 // Ícones
 import IconAddress from "./components/icons/IconAddress";
@@ -39,13 +38,11 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({});
   const [direction, setDirection] = useState(1);
-  const [error, setError] = useState(null);
-  const [isRetrying, setIsRetrying] = useState(false);
   const sigRef = useRef(null);
 
   // Hooks personalizados
   const { serverWakeupAttempted } = useServerWakeup();
-  const { processing, done, submitForm, resetSubmission } = useFormSubmission();
+  const { processing, done, submitForm } = useFormSubmission();
 
   // ================================
   // Dados dos Steps
@@ -124,7 +121,6 @@ export default function App() {
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
 
     try {
       // Verificações preliminares
@@ -145,40 +141,11 @@ export default function App() {
       await submitForm(formData, sigDataUrl, selectedPlans);
     } catch (err) {
       console.error("Erro no processamento do formulário:", err);
-      setError(err.message || "Erro desconhecido");
+      alert(
+        "Erro ao processar sua solicitação: " +
+          (err.message || "erro desconhecido")
+      );
     }
-  };
-
-  /**
-   * Tenta reenviar o formulário após erro
-   */
-  const handleRetry = async () => {
-    setIsRetrying(true);
-    setError(null);
-    
-    try {
-      const selectedPlans = formData.selectedPlans || [];
-      const sigDataUrl = sigRef.current?.toDataURL("image/png");
-      
-      if (!sigDataUrl) {
-        throw new Error("Campo de assinatura não disponível");
-      }
-
-      await submitForm(formData, sigDataUrl, selectedPlans);
-    } catch (err) {
-      console.error("Erro no retry:", err);
-      setError(err.message || "Erro desconhecido");
-    } finally {
-      setIsRetrying(false);
-    }
-  };
-
-  /**
-   * Volta ao formulário após erro
-   */
-  const handleGoBack = () => {
-    setError(null);
-    resetSubmission();
   };
 
   // ================================
@@ -210,18 +177,6 @@ export default function App() {
   // ================================
   // Early Returns
   // ================================
-  // Se houver erro, exibe a página de erro
-  if (error) {
-    return (
-      <ErrorPage
-        error={error}
-        onRetry={handleRetry}
-        onGoBack={handleGoBack}
-        isRetrying={isRetrying}
-      />
-    );
-  }
-
   // Se o processo estiver concluído, exibe a mensagem de sucesso
   if (done) {
     return <SuccessMessage email={formData.EMAIL} />;

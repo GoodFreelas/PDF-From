@@ -72,73 +72,21 @@ if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
   console.warn('⚠️  Credenciais SMTP não configuradas. Email será desabilitado.');
 }
 
-// Detectar se estamos em produção (Render)
-const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
-
-// Função para criar transporter com diferentes configurações
-const createTransporter = (port = 587) => {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) return null;
-  
-  return nodemailer.createTransport({
+const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
+  ? nodemailer.createTransport({
     host: 'smtpi.ampare.org.br',
-    port: port,
-    secure: port === 465, // true para 465, false para outras portas
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD
     },
     tls: {
       rejectUnauthorized: false,
-      minVersion: 'TLSv1.2',
-      ciphers: isProduction ? 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384' : 'SSLv3',
-      servername: 'smtpi.ampare.org.br'
-    },
-    // Configurações específicas para produção vs desenvolvimento
-    ...(isProduction ? {
-      // Configurações para Render/produção
-      connectionTimeout: parseInt(process.env.SMTP_TIMEOUT) || 15000,
-      greetingTimeout: 10000,
-      socketTimeout: parseInt(process.env.SMTP_TIMEOUT) || 15000,
-      pool: false,
-      maxConnections: 1,
-      maxMessages: 1,
-      retryDelay: parseInt(process.env.SMTP_RETRY_DELAY) || 1000,
-      retryAttempts: parseInt(process.env.SMTP_RETRY_ATTEMPTS) || 3,
-      // Configurações de DNS para produção
-      dnsTimeout: 5000,
-      // Forçar IPv4
-      family: 4
-    } : {
-      // Configurações para desenvolvimento
-      connectionTimeout: 30000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-      pool: false,
-      retryDelay: 2000,
-      retryAttempts: 5
-    })
-  });
-};
-
-// Tentar diferentes portas em produção
-const transporter = isProduction 
-  ? (() => {
-      const ports = [587, 465, 25, 2525];
-      for (const port of ports) {
-        try {
-          const testTransporter = createTransporter(port);
-          if (testTransporter) {
-            console.log(`🔌 Usando porta SMTP: ${port}`);
-            return testTransporter;
-          }
-        } catch (error) {
-          console.warn(`⚠️  Porta ${port} não disponível:`, error.message);
-        }
-      }
-      console.warn('⚠️  Nenhuma porta SMTP funcionando, email desabilitado');
-      return null;
-    })()
-  : createTransporter(587);
+      minVersion: 'TLSv1.2'
+    }
+  })
+  : null;
 
 /* ──────────────────── diretório temporário local ─────────────────────── */
 const tempDir = path.join(__dirname, 'temp');
@@ -253,78 +201,6 @@ export const defaultScale = 1.05;
 app.get('/api/check-status', (_, res) =>
   res.json({ status: 'online', timestamp: new Date().toISOString() })
 );
-
-// Rota para testar conectividade SMTP
-app.get('/api/test-smtp', async (_, res) => {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-    return res.json({ 
-      success: false, 
-      message: 'SMTP não configurado',
-      smtpConfigured: false 
-    });
-  }
-
-  console.log('🔍 Testando conectividade SMTP...');
-  console.log(`🌍 Ambiente: ${isProduction ? 'PRODUÇÃO (Render)' : 'DESENVOLVIMENTO'}`);
-  
-  const ports = [587, 465, 25, 2525];
-  const results = [];
-  let workingPort = null;
-
-  for (const port of ports) {
-    try {
-      console.log(`🔌 Testando porta ${port}...`);
-      const testTransporter = createTransporter(port);
-      
-      const startTime = Date.now();
-      await testTransporter.verify();
-      const duration = Date.now() - startTime;
-      
-      console.log(`✅ Porta ${port}: CONECTADA (${duration}ms)`);
-      results.push({ port, success: true, duration, error: null });
-      
-      if (!workingPort) {
-        workingPort = port;
-      }
-      
-      // Fechar conexão de teste
-      testTransporter.close();
-      
-    } catch (error) {
-      console.log(`❌ Porta ${port}: FALHOU - ${error.message}`);
-      results.push({ 
-        port, 
-        success: false, 
-        duration: null, 
-        error: {
-          code: error.code,
-          command: error.command,
-          message: error.message
-        }
-      });
-    }
-  }
-
-  res.json({
-    success: workingPort !== null,
-    message: workingPort 
-      ? `Conexão SMTP funcionando na porta ${workingPort}` 
-      : 'Nenhuma porta SMTP funcionando',
-    smtpConfigured: true,
-    environment: isProduction ? 'production' : 'development',
-    workingPort,
-    results,
-    recommendations: workingPort ? [
-      `Usando porta ${workingPort} para envio de emails`,
-      'Configure SMTP_PORT no Render se necessário'
-    ] : [
-      'O Render está bloqueando todas as portas SMTP',
-      'Adicione as variáveis de ambiente sugeridas no Render',
-      'Considere usar um serviço de email dedicado',
-      'Verifique as configurações de firewall do servidor SMTP'
-    ]
-  });
-});
 
 app.post('/api/pre-process-check', (req, res) => {
   try {
@@ -598,81 +474,43 @@ async function sendEmailToAdmin(anexos, formData) {
     return { emailSent: false };
   }
 
-  // Email fixo do administrador - substitua pelo seu email
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@ampare.org.br';
+  try {
+    // Email fixo do administrador - substitua pelo seu email
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@ampare.org.br';
 
-  // Verificar se temos um destinatário válido
-  if (!ADMIN_EMAIL || ADMIN_EMAIL.trim() === '') {
-    console.error('❌ Email do administrador não configurado');
-    return { emailSent: false, error: 'Email do administrador não configurado' };
-  }
+    console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
 
-  console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
-  console.log(`🌍 Ambiente: ${isProduction ? 'PRODUÇÃO (Render)' : 'DESENVOLVIMENTO'}`);
-
-  // Configurações de retry específicas para ambiente
-  const maxRetries = isProduction ? 3 : 5;
-  const retryDelay = isProduction ? 1000 : 2000; // 1s produção, 2s desenvolvimento
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`📧 Tentativa ${attempt}/${maxRetries} de envio de email...`);
-
-      // Em produção, verificar conexão apenas na primeira tentativa
-      if (isProduction && attempt === 1) {
-        try {
-          console.log('🔍 Verificando conectividade SMTP...');
-          await transporter.verify();
-          console.log('✅ Conexão SMTP verificada');
-        } catch (verifyError) {
-          console.warn('⚠️  Verificação de conexão falhou, mas tentando enviar mesmo assim:', verifyError.message);
-        }
-      }
-
-      await transporter.sendMail({
-        from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
-        to: ADMIN_EMAIL,
-        subject: `Nova Adesão - ${formData.NOME}`,
-        html: `
-          <h2>Nova Adesão Recebida</h2>
-          <p><strong>Nome:</strong> ${formData.NOME}</p>
-          <p><strong>Email do Cliente:</strong> ${formData.EMAIL}</p>
-          <p><strong>CPF:</strong> ${formData.CPF}</p>
-          <p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>
-          <p><strong>Empresa:</strong> ${formData.EMPRESA}</p>
-          <p><strong>Contratos Selecionados:</strong></p>
-          <ul>
-            ${anexos.map(a => `<li>${a.label}</li>`).join('')}
-          </ul>
-          <p>Os contratos preenchidos seguem em anexo.</p>
-        `,
-        attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
-      });
-
-      console.log('✅ Email enviado com sucesso para o administrador');
-      return { emailSent: true };
-    } catch (error) {
-      console.error(`❌ Erro na tentativa ${attempt}/${maxRetries}:`, error.message);
-      
-      // Se for o último attempt, retorna o erro
-      if (attempt === maxRetries) {
-        console.error('❌ Falha ao enviar email após todas as tentativas');
-        return { emailSent: false, error: error.message };
-      }
-
-      // Se não for timeout ou erro de conexão, não tenta novamente
-      if (error.code !== 'ETIMEDOUT' && error.code !== 'ECONNREFUSED' && error.code !== 'ENOTFOUND' && error.code !== 'ECONNRESET') {
-        console.error('❌ Erro não relacionado à conexão, não tentando novamente');
-        return { emailSent: false, error: error.message };
-      }
-
-      // Aguarda antes da próxima tentativa
-      console.log(`⏳ Aguardando ${retryDelay/1000} segundos antes da próxima tentativa...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    // Verificar se temos um destinatário válido
+    if (!ADMIN_EMAIL || ADMIN_EMAIL.trim() === '') {
+      throw new Error('Email do administrador não configurado');
     }
-  }
 
-  return { emailSent: false, error: 'Todas as tentativas falharam' };
+    await transporter.sendMail({
+      from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
+      to: ADMIN_EMAIL,
+      subject: `Nova Adesão - ${formData.NOME}`,
+      html: `
+        <h2>Nova Adesão Recebida</h2>
+        <p><strong>Nome:</strong> ${formData.NOME}</p>
+        <p><strong>Email do Cliente:</strong> ${formData.EMAIL}</p>
+        <p><strong>CPF:</strong> ${formData.CPF}</p>
+        <p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>
+        <p><strong>Empresa:</strong> ${formData.EMPRESA}</p>
+        <p><strong>Contratos Selecionados:</strong></p>
+        <ul>
+          ${anexos.map(a => `<li>${a.label}</li>`).join('')}
+        </ul>
+        <p>Os contratos preenchidos seguem em anexo.</p>
+      `,
+      attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
+    });
+
+    console.log('✅ Email enviado com sucesso para o administrador');
+    return { emailSent: true };
+  } catch (error) {
+    console.error('❌ Erro ao enviar email:', error);
+    return { emailSent: false, error: error.message };
+  }
 }
 
 /* ───────────────────────────── start! ─────────────────────────────────── */

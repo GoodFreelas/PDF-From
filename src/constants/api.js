@@ -6,7 +6,7 @@
 /**
  * URL base da API
  */
-export const API_BASE_URL = "https://ampare-termos.onrender.com";
+export const API_BASE_URL = "https://pdf-from.fly.dev";
 
 /**
  * Configurações de retry para requisições

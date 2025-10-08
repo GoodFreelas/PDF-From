@@ -69,17 +69,6 @@ export const useFormSubmission = () => {
 
           // Processa a resposta do servidor
           responseData = await resp.json();
-          
-          // Verifica se houve erro no envio de email
-          if (responseData.success === false) {
-            throw new Error(responseData.message || 'Erro no processamento');
-          }
-          
-          // Verifica se o email foi enviado com sucesso
-          if (responseData.message && responseData.message.includes('Erro no email')) {
-            throw new Error('Falha no envio do email: ' + responseData.message);
-          }
-          
           success = true;
         } catch (error) {
           if (attempts >= maxAttempts) {
