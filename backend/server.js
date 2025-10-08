@@ -84,7 +84,19 @@ const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
     tls: {
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2'
-    }
+    },
+    // Configurações de timeout para produção
+    connectionTimeout: 60000, // 60 segundos
+    greetingTimeout: 30000,   // 30 segundos
+    socketTimeout: 60000,     // 60 segundos
+    // Configurações de pool para melhor performance
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    rateLimit: 10, // 10 emails por segundo
+    // Configurações de retry
+    retryDelay: 5000, // 5 segundos entre tentativas
+    retryAttempts: 3
   })
   : null;
 
@@ -201,6 +213,42 @@ export const defaultScale = 1.05;
 app.get('/api/check-status', (_, res) =>
   res.json({ status: 'online', timestamp: new Date().toISOString() })
 );
+
+// Rota para testar conectividade SMTP
+app.get('/api/test-smtp', async (_, res) => {
+  if (!transporter) {
+    return res.json({ 
+      success: false, 
+      message: 'SMTP não configurado',
+      smtpConfigured: false 
+    });
+  }
+
+  try {
+    console.log('🔍 Testando conectividade SMTP...');
+    await transporter.verify();
+    console.log('✅ Conexão SMTP verificada com sucesso');
+    res.json({ 
+      success: true, 
+      message: 'Conexão SMTP funcionando',
+      smtpConfigured: true,
+      host: 'smtpi.ampare.org.br',
+      port: 587
+    });
+  } catch (error) {
+    console.error('❌ Erro na verificação SMTP:', error);
+    res.json({ 
+      success: false, 
+      message: `Erro SMTP: ${error.message}`,
+      smtpConfigured: true,
+      error: {
+        code: error.code,
+        command: error.command,
+        message: error.message
+      }
+    });
+  }
+});
 
 app.post('/api/pre-process-check', (req, res) => {
   try {
@@ -474,43 +522,72 @@ async function sendEmailToAdmin(anexos, formData) {
     return { emailSent: false };
   }
 
-  try {
-    // Email fixo do administrador - substitua pelo seu email
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@ampare.org.br';
+  // Email fixo do administrador - substitua pelo seu email
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@ampare.org.br';
 
-    console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
-
-    // Verificar se temos um destinatário válido
-    if (!ADMIN_EMAIL || ADMIN_EMAIL.trim() === '') {
-      throw new Error('Email do administrador não configurado');
-    }
-
-    await transporter.sendMail({
-      from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
-      to: ADMIN_EMAIL,
-      subject: `Nova Adesão - ${formData.NOME}`,
-      html: `
-        <h2>Nova Adesão Recebida</h2>
-        <p><strong>Nome:</strong> ${formData.NOME}</p>
-        <p><strong>Email do Cliente:</strong> ${formData.EMAIL}</p>
-        <p><strong>CPF:</strong> ${formData.CPF}</p>
-        <p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>
-        <p><strong>Empresa:</strong> ${formData.EMPRESA}</p>
-        <p><strong>Contratos Selecionados:</strong></p>
-        <ul>
-          ${anexos.map(a => `<li>${a.label}</li>`).join('')}
-        </ul>
-        <p>Os contratos preenchidos seguem em anexo.</p>
-      `,
-      attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
-    });
-
-    console.log('✅ Email enviado com sucesso para o administrador');
-    return { emailSent: true };
-  } catch (error) {
-    console.error('❌ Erro ao enviar email:', error);
-    return { emailSent: false, error: error.message };
+  // Verificar se temos um destinatário válido
+  if (!ADMIN_EMAIL || ADMIN_EMAIL.trim() === '') {
+    console.error('❌ Email do administrador não configurado');
+    return { emailSent: false, error: 'Email do administrador não configurado' };
   }
+
+  console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
+
+  // Configurações de retry
+  const maxRetries = 3;
+  const retryDelay = 5000; // 5 segundos
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📧 Tentativa ${attempt}/${maxRetries} de envio de email...`);
+
+      // Verificar conexão antes de enviar
+      await transporter.verify();
+
+      await transporter.sendMail({
+        from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
+        to: ADMIN_EMAIL,
+        subject: `Nova Adesão - ${formData.NOME}`,
+        html: `
+          <h2>Nova Adesão Recebida</h2>
+          <p><strong>Nome:</strong> ${formData.NOME}</p>
+          <p><strong>Email do Cliente:</strong> ${formData.EMAIL}</p>
+          <p><strong>CPF:</strong> ${formData.CPF}</p>
+          <p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>
+          <p><strong>Empresa:</strong> ${formData.EMPRESA}</p>
+          <p><strong>Contratos Selecionados:</strong></p>
+          <ul>
+            ${anexos.map(a => `<li>${a.label}</li>`).join('')}
+          </ul>
+          <p>Os contratos preenchidos seguem em anexo.</p>
+        `,
+        attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
+      });
+
+      console.log('✅ Email enviado com sucesso para o administrador');
+      return { emailSent: true };
+    } catch (error) {
+      console.error(`❌ Erro na tentativa ${attempt}/${maxRetries}:`, error.message);
+      
+      // Se for o último attempt, retorna o erro
+      if (attempt === maxRetries) {
+        console.error('❌ Falha ao enviar email após todas as tentativas');
+        return { emailSent: false, error: error.message };
+      }
+
+      // Se não for timeout ou erro de conexão, não tenta novamente
+      if (error.code !== 'ETIMEDOUT' && error.code !== 'ECONNREFUSED' && error.code !== 'ENOTFOUND') {
+        console.error('❌ Erro não relacionado à conexão, não tentando novamente');
+        return { emailSent: false, error: error.message };
+      }
+
+      // Aguarda antes da próxima tentativa
+      console.log(`⏳ Aguardando ${retryDelay/1000} segundos antes da próxima tentativa...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  return { emailSent: false, error: 'Todas as tentativas falharam' };
 }
 
 /* ───────────────────────────── start! ─────────────────────────────────── */
