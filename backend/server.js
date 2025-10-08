@@ -72,6 +72,9 @@ if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
   console.warn('⚠️  Credenciais SMTP não configuradas. Email será desabilitado.');
 }
 
+// Detectar se estamos em produção (Render)
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
+
 const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
   ? nodemailer.createTransport({
     host: 'smtpi.ampare.org.br',
@@ -84,17 +87,33 @@ const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
     tls: {
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2',
-      ciphers: 'SSLv3'
+      ciphers: isProduction ? 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384' : 'SSLv3',
+      servername: 'smtpi.ampare.org.br'
     },
-    // Configurações otimizadas para Render
-    connectionTimeout: 30000, // 30 segundos
-    greetingTimeout: 15000,   // 15 segundos
-    socketTimeout: 30000,     // 30 segundos
-    // Desabilitar pool para evitar problemas de conexão
-    pool: false,
-    // Configurações de retry mais agressivas
-    retryDelay: 2000, // 2 segundos entre tentativas
-    retryAttempts: 5
+    // Configurações específicas para produção vs desenvolvimento
+    ...(isProduction ? {
+      // Configurações para Render/produção
+      connectionTimeout: 15000, // 15 segundos (mais agressivo)
+      greetingTimeout: 10000,   // 10 segundos
+      socketTimeout: 15000,     // 15 segundos
+      pool: false,
+      maxConnections: 1,
+      maxMessages: 1,
+      retryDelay: 1000, // 1 segundo
+      retryAttempts: 3,
+      // Configurações de DNS para produção
+      dnsTimeout: 5000,
+      // Forçar IPv4
+      family: 4
+    } : {
+      // Configurações para desenvolvimento
+      connectionTimeout: 30000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+      pool: false,
+      retryDelay: 2000,
+      retryAttempts: 5
+    })
   })
   : null;
 
@@ -224,15 +243,26 @@ app.get('/api/test-smtp', async (_, res) => {
 
   try {
     console.log('🔍 Testando conectividade SMTP...');
+    console.log(`🌍 Ambiente: ${isProduction ? 'PRODUÇÃO (Render)' : 'DESENVOLVIMENTO'}`);
+    
+    const startTime = Date.now();
     await transporter.verify();
-    console.log('✅ Conexão SMTP verificada com sucesso');
+    const duration = Date.now() - startTime;
+    
+    console.log(`✅ Conexão SMTP verificada com sucesso em ${duration}ms`);
     res.json({ 
       success: true, 
       message: 'Conexão SMTP funcionando',
       smtpConfigured: true,
+      environment: isProduction ? 'production' : 'development',
       host: 'smtpi.ampare.org.br',
       port: 587,
-      timeouts: {
+      responseTime: `${duration}ms`,
+      timeouts: isProduction ? {
+        connection: '15s',
+        greeting: '10s',
+        socket: '15s'
+      } : {
         connection: '30s',
         greeting: '15s',
         socket: '30s'
@@ -244,15 +274,21 @@ app.get('/api/test-smtp', async (_, res) => {
       success: false, 
       message: `Erro SMTP: ${error.message}`,
       smtpConfigured: true,
+      environment: isProduction ? 'production' : 'development',
       error: {
         code: error.code,
         command: error.command,
         message: error.message
       },
-      recommendations: [
+      recommendations: isProduction ? [
+        'O Render pode estar bloqueando conexões SMTP externas',
+        'Considere usar um serviço de email dedicado (SendGrid, Mailgun)',
+        'Verifique as configurações de firewall do servidor SMTP',
+        'Teste com diferentes portas (465, 25)'
+      ] : [
         'Verifique se o servidor SMTP está acessível',
         'Confirme as credenciais SMTP_USER e SMTP_PASSWORD',
-        'Teste a conectividade de rede do Render'
+        'Teste a conectividade de rede local'
       ]
     });
   }
@@ -540,16 +576,27 @@ async function sendEmailToAdmin(anexos, formData) {
   }
 
   console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
+  console.log(`🌍 Ambiente: ${isProduction ? 'PRODUÇÃO (Render)' : 'DESENVOLVIMENTO'}`);
 
-  // Configurações de retry otimizadas para Render
-  const maxRetries = 5;
-  const retryDelay = 2000; // 2 segundos
+  // Configurações de retry específicas para ambiente
+  const maxRetries = isProduction ? 3 : 5;
+  const retryDelay = isProduction ? 1000 : 2000; // 1s produção, 2s desenvolvimento
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`📧 Tentativa ${attempt}/${maxRetries} de envio de email...`);
 
-      // Não verificar conexão antes (pode causar timeout desnecessário)
+      // Em produção, verificar conexão apenas na primeira tentativa
+      if (isProduction && attempt === 1) {
+        try {
+          console.log('🔍 Verificando conectividade SMTP...');
+          await transporter.verify();
+          console.log('✅ Conexão SMTP verificada');
+        } catch (verifyError) {
+          console.warn('⚠️  Verificação de conexão falhou, mas tentando enviar mesmo assim:', verifyError.message);
+        }
+      }
+
       await transporter.sendMail({
         from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
         to: ADMIN_EMAIL,
