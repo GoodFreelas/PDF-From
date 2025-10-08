@@ -75,11 +75,14 @@ if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
 // Detectar se estamos em produção (Render)
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
 
-const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
-  ? nodemailer.createTransport({
+// Função para criar transporter com diferentes configurações
+const createTransporter = (port = 587) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) return null;
+  
+  return nodemailer.createTransport({
     host: 'smtpi.ampare.org.br',
-    port: 587,
-    secure: false,
+    port: port,
+    secure: port === 465, // true para 465, false para outras portas
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD
@@ -93,14 +96,14 @@ const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
     // Configurações específicas para produção vs desenvolvimento
     ...(isProduction ? {
       // Configurações para Render/produção
-      connectionTimeout: 15000, // 15 segundos (mais agressivo)
-      greetingTimeout: 10000,   // 10 segundos
-      socketTimeout: 15000,     // 15 segundos
+      connectionTimeout: parseInt(process.env.SMTP_TIMEOUT) || 15000,
+      greetingTimeout: 10000,
+      socketTimeout: parseInt(process.env.SMTP_TIMEOUT) || 15000,
       pool: false,
       maxConnections: 1,
       maxMessages: 1,
-      retryDelay: 1000, // 1 segundo
-      retryAttempts: 3,
+      retryDelay: parseInt(process.env.SMTP_RETRY_DELAY) || 1000,
+      retryAttempts: parseInt(process.env.SMTP_RETRY_ATTEMPTS) || 3,
       // Configurações de DNS para produção
       dnsTimeout: 5000,
       // Forçar IPv4
@@ -114,8 +117,28 @@ const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
       retryDelay: 2000,
       retryAttempts: 5
     })
-  })
-  : null;
+  });
+};
+
+// Tentar diferentes portas em produção
+const transporter = isProduction 
+  ? (() => {
+      const ports = [587, 465, 25, 2525];
+      for (const port of ports) {
+        try {
+          const testTransporter = createTransporter(port);
+          if (testTransporter) {
+            console.log(`🔌 Usando porta SMTP: ${port}`);
+            return testTransporter;
+          }
+        } catch (error) {
+          console.warn(`⚠️  Porta ${port} não disponível:`, error.message);
+        }
+      }
+      console.warn('⚠️  Nenhuma porta SMTP funcionando, email desabilitado');
+      return null;
+    })()
+  : createTransporter(587);
 
 /* ──────────────────── diretório temporário local ─────────────────────── */
 const tempDir = path.join(__dirname, 'temp');
@@ -233,7 +256,7 @@ app.get('/api/check-status', (_, res) =>
 
 // Rota para testar conectividade SMTP
 app.get('/api/test-smtp', async (_, res) => {
-  if (!transporter) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
     return res.json({ 
       success: false, 
       message: 'SMTP não configurado',
@@ -241,57 +264,66 @@ app.get('/api/test-smtp', async (_, res) => {
     });
   }
 
-  try {
-    console.log('🔍 Testando conectividade SMTP...');
-    console.log(`🌍 Ambiente: ${isProduction ? 'PRODUÇÃO (Render)' : 'DESENVOLVIMENTO'}`);
-    
-    const startTime = Date.now();
-    await transporter.verify();
-    const duration = Date.now() - startTime;
-    
-    console.log(`✅ Conexão SMTP verificada com sucesso em ${duration}ms`);
-    res.json({ 
-      success: true, 
-      message: 'Conexão SMTP funcionando',
-      smtpConfigured: true,
-      environment: isProduction ? 'production' : 'development',
-      host: 'smtpi.ampare.org.br',
-      port: 587,
-      responseTime: `${duration}ms`,
-      timeouts: isProduction ? {
-        connection: '15s',
-        greeting: '10s',
-        socket: '15s'
-      } : {
-        connection: '30s',
-        greeting: '15s',
-        socket: '30s'
+  console.log('🔍 Testando conectividade SMTP...');
+  console.log(`🌍 Ambiente: ${isProduction ? 'PRODUÇÃO (Render)' : 'DESENVOLVIMENTO'}`);
+  
+  const ports = [587, 465, 25, 2525];
+  const results = [];
+  let workingPort = null;
+
+  for (const port of ports) {
+    try {
+      console.log(`🔌 Testando porta ${port}...`);
+      const testTransporter = createTransporter(port);
+      
+      const startTime = Date.now();
+      await testTransporter.verify();
+      const duration = Date.now() - startTime;
+      
+      console.log(`✅ Porta ${port}: CONECTADA (${duration}ms)`);
+      results.push({ port, success: true, duration, error: null });
+      
+      if (!workingPort) {
+        workingPort = port;
       }
-    });
-  } catch (error) {
-    console.error('❌ Erro na verificação SMTP:', error);
-    res.json({ 
-      success: false, 
-      message: `Erro SMTP: ${error.message}`,
-      smtpConfigured: true,
-      environment: isProduction ? 'production' : 'development',
-      error: {
-        code: error.code,
-        command: error.command,
-        message: error.message
-      },
-      recommendations: isProduction ? [
-        'O Render pode estar bloqueando conexões SMTP externas',
-        'Considere usar um serviço de email dedicado (SendGrid, Mailgun)',
-        'Verifique as configurações de firewall do servidor SMTP',
-        'Teste com diferentes portas (465, 25)'
-      ] : [
-        'Verifique se o servidor SMTP está acessível',
-        'Confirme as credenciais SMTP_USER e SMTP_PASSWORD',
-        'Teste a conectividade de rede local'
-      ]
-    });
+      
+      // Fechar conexão de teste
+      testTransporter.close();
+      
+    } catch (error) {
+      console.log(`❌ Porta ${port}: FALHOU - ${error.message}`);
+      results.push({ 
+        port, 
+        success: false, 
+        duration: null, 
+        error: {
+          code: error.code,
+          command: error.command,
+          message: error.message
+        }
+      });
+    }
   }
+
+  res.json({
+    success: workingPort !== null,
+    message: workingPort 
+      ? `Conexão SMTP funcionando na porta ${workingPort}` 
+      : 'Nenhuma porta SMTP funcionando',
+    smtpConfigured: true,
+    environment: isProduction ? 'production' : 'development',
+    workingPort,
+    results,
+    recommendations: workingPort ? [
+      `Usando porta ${workingPort} para envio de emails`,
+      'Configure SMTP_PORT no Render se necessário'
+    ] : [
+      'O Render está bloqueando todas as portas SMTP',
+      'Adicione as variáveis de ambiente sugeridas no Render',
+      'Considere usar um serviço de email dedicado',
+      'Verifique as configurações de firewall do servidor SMTP'
+    ]
+  });
 });
 
 app.post('/api/pre-process-check', (req, res) => {
