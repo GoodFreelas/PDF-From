@@ -21,7 +21,7 @@ const __dirname = path.dirname(__filename);
 
 /* ───────────────── configuração geral ────────────────────────────────── */
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 /* ────────────────────────────── CORS ────────────────────────────────────*/
 const allowedOrigins = [
@@ -30,9 +30,10 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'http://localhost:5500',
   'https://pdf-from.vercel.app',
-  'https://ampare-termos.onrender.com',
+  'https://pdf-from.fly.dev',
   'https://www.pdf-from.vercel.app',
-  'https://ampare.org.br'
+  'https://ampare.org.br',
+  'https://ampare-pdf-backend.fly.dev'
 ];
 
 app.use(
