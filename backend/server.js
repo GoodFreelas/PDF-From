@@ -46,13 +46,13 @@ app.use(
     origin: (origin, cb) => {
       // Permitir requisições sem origin (curl, Postman, etc.)
       if (!origin) return cb(null, true);
-      
+
       // Permitir origens da lista
       if (allowedOrigins.includes(origin)) return cb(null, true);
-      
+
       // Para desenvolvimento local, permitir qualquer localhost
       if (origin && (
-        origin.startsWith('http://localhost:') || 
+        origin.startsWith('http://localhost:') ||
         origin.startsWith('https://localhost:') ||
         origin.startsWith('http://127.0.0.1:') ||
         origin.startsWith('https://127.0.0.1:')
@@ -60,7 +60,7 @@ app.use(
         console.log(`🔓 Permitindo origin de desenvolvimento: ${origin}`);
         return cb(null, true);
       }
-      
+
       // Log da origem rejeitada para debug
       console.log(`❌ Origin rejeitada: ${origin}`);
       return cb(new Error(`Origin ${origin} não permitida pelo CORS`));
@@ -536,6 +536,7 @@ async function sendEmailToAdmin(anexos, formData) {
 }
 
 /* ───────────────────────────── start! ─────────────────────────────────── */
-app.listen(PORT, () => {
-  console.log(`✅  Servidor rodando em http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅  Servidor rodando em http://0.0.0.0:${PORT}`);
+  console.log(`🌍 Acessível externamente via Fly.io`);
 });
