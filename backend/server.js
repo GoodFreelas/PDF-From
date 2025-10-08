@@ -33,16 +33,37 @@ const allowedOrigins = [
   'https://pdf-from.fly.dev',
   'https://www.pdf-from.vercel.app',
   'https://ampare.org.br',
-  'https://ampare-pdf-backend.fly.dev'
+  'https://ampare-pdf-backend.fly.dev',
+  // Adicionar mais domínios comuns para desenvolvimento
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'https://localhost:5173',
+  'https://127.0.0.1:5173'
 ];
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);           // curl / Postman
-      return allowedOrigins.includes(origin)
-        ? cb(null, true)
-        : cb(new Error(`Origin ${origin} não permitida pelo CORS`));
+      // Permitir requisições sem origin (curl, Postman, etc.)
+      if (!origin) return cb(null, true);
+      
+      // Permitir origens da lista
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      
+      // Para desenvolvimento local, permitir qualquer localhost
+      if (origin && (
+        origin.startsWith('http://localhost:') || 
+        origin.startsWith('https://localhost:') ||
+        origin.startsWith('http://127.0.0.1:') ||
+        origin.startsWith('https://127.0.0.1:')
+      )) {
+        console.log(`🔓 Permitindo origin de desenvolvimento: ${origin}`);
+        return cb(null, true);
+      }
+      
+      // Log da origem rejeitada para debug
+      console.log(`❌ Origin rejeitada: ${origin}`);
+      return cb(new Error(`Origin ${origin} não permitida pelo CORS`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
