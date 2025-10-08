@@ -1,26 +1,23 @@
-# Configuração do Fly.io para o backend AMPARE PDF Generator
+# fly.toml app configuration file generated for pdf-from on 2025-10-08T18:13:54Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "ampare-pdf-backend"
-primary_region = "gru"  # São Paulo, Brasil
+app = 'pdf-from'
+primary_region = 'gru'
 
 [build]
-
-[env]
-  NODE_ENV = "production"
-  PORT = "8080"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
 [[vm]]
-  memory = "1gb"
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
-
-[deploy]
-  release_command = "echo 'Deploy iniciado'"
+  memory_mb = 1024
