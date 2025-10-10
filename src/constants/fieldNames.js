@@ -54,6 +54,5 @@ export const BRAZILIAN_STATES = [
  */
 export const PLANS_OPTIONS = [
   { id: 'qualidonto', label: 'Qualidonto' },
-  { id: 'vitalmed', label: 'Vitalmed' },
-  { id: 'saude', label: 'Blue Saúde' }
+  { id: 'vitalmed', label: 'Vitalmed' }
 ];

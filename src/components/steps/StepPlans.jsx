@@ -119,8 +119,7 @@ export default function StepPlans({
 
   const plansOptions = [
     { id: 'qualidonto', label: 'Qualidonto' },
-    { id: 'vitalmed', label: 'Vitalmed' },
-    { id: 'saude', label: 'Blue Saúde' }
+    { id: 'vitalmed', label: 'Vitalmed' }
   ];
 
   // Inicializa as referências dos calendários quando dependentes mudam
