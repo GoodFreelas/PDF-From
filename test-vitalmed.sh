@@ -34,6 +34,9 @@ RESPONSE=$(curl -s -X POST \
       "NASCIMENTO": "10/08/1985",
       "EMAIL": "carlos@email.com",
       "TELEFONE1": "(11) 77777-7777",
+      "TELEFONE2": "(11) 77777-7777",
+      "TELEFONE3": "(11) 77777-7777",
+      "COMPLEMENTO": "apt 48",
       "DATA": "15/12/2024",
       "RUA": "Rua das Palmeiras",
       "NUMERO": "456",
@@ -47,6 +50,7 @@ RESPONSE=$(curl -s -X POST \
       "CARGO": "Gerente",
       "ADMISSAO": "01/03/2022",
       "PIS": "11122233344",
+      "VALOR":  "123",
       "dependents": [
         {
           "NOME": "Ana Silva Santos",
@@ -57,6 +61,26 @@ RESPONSE=$(curl -s -X POST \
           "NOME": "Lucas Silva Santos",
           "NASCIMENTO": "20/03/2015",
           "CPF": "99988877766"
+        },
+        {
+          "NOME": "Marina Silva Santos",
+          "NASCIMENTO": "05/07/2018",
+          "CPF": "44455566677"
+        },
+        {
+          "NOME": "Ana Silva Santos",
+          "NASCIMENTO": "15/12/1990",
+          "CPF": "55566677788"
+        },
+        {
+          "NOME": "Lucas Silva Santos",
+          "NASCIMENTO": "20/03/2015",
+          "CPF": "99988877766"
+        },
+        {
+          "NOME": "Marina Silva Santos",
+          "NASCIMENTO": "05/07/2018",
+          "CPF": "44455566677"
         },
         {
           "NOME": "Marina Silva Santos",
