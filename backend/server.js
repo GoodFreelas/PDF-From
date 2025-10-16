@@ -116,35 +116,6 @@ if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
 /* ───────────────────── mapas de contratos (PDFs) ─────────────────────── */
 export const CONTRACT_FILES = {
-  saude: {
-    label: 'Seguro-Saúde',
-    file: path.join(__dirname, 'public', 'contrato-blue-saude.pdf'),
-    positions: {
-      NOME: [{ x: 80, y: 675 }, { x: 92, y: 455 }],
-      RG: { x: 90, y: 660 },
-      CPF: { x: 380, y: 660 },
-      EMPRESA: { x: 475, y: 629 },
-      RUA: { x: 110, y: 430 },
-      NUMERO: { x: 515, y: 430 },
-      COMPLEMENTO: { x: 135, y: 404 },
-      BAIRRO: { x: 95, y: 378 },
-      CIDADE: { x: 298, y: 378 },
-      ESTADO: { x: 440, y: 378 },
-      CEP: { x: 485, y: 378 },
-      TELEFONE1: { x: 115, y: 353 },
-      TELEFONE2: { x: 210, y: 353 },
-      TELEFONE3: { x: 290, y: 353 },
-      NASCIMENTO: { x: 485, y: 353 },
-      MATRICULA: { x: 120, y: 328 },
-      ORGAO: { x: 370, y: 328 },
-      CARGO: { x: 138, y: 303 },
-      ADMISSAO: { x: 480, y: 303 },
-      PIS: { x: 120, y: 277 },
-      EMAIL: { x: 115, y: 253 },
-      DATA: { x: 360, y: 225 },
-      SIGN: { x: 92, y: 150 },
-    }
-  },
   qualidonto: {
     label: 'Plano Odontológico',
     file: path.join(__dirname, 'public', 'contrato-qualidonto.pdf'),
@@ -172,7 +143,7 @@ export const CONTRACT_FILES = {
       EMAIL: { x: 110, y: 218 },
       DATA: { x: 360, y: 193 },
       SIGN: { x: 92, y: 125 },
-      VALOR: { x: 155, y: 498 }
+      VALOR1: { x: 160, y: 497 }
     }
   },
   vitalmed: {
@@ -182,37 +153,38 @@ export const CONTRACT_FILES = {
       NOME: { x: 90, y: 154 },
       NASCIMENTO: { x: 320, y: 154 },
       CPF: { x: 75, y: 137 },
-      RUA: { x: 105, y: 118 },
+      RUA: { x: 102, y: 118 },
       NUMERO: { x: 320, y: 118 },
       COMPLEMENTO: { x: 120, y: 100 },
-      BAIRRO: { x: 210, y: 100 },
+      BAIRRO: { x: 340, y: 100 },
       CEP: { x: 74, y: 82 },
-      TELEFONE1: { x: 360, y: 82 },
-      TELEFONE2: { x: 200, y: 82 },
-      CIDADE: { x: 143, y: 64 },
+      TELEFONE1: { x: 345, y: 82 },
+      TELEFONE2: { x: 202, y: 82 },
+      CIDADE: { x: 143, y: 63 },
       TELEFONE3: { x: 365, y: 64 },
-      MATRICULA: { x: 153, y: 714, page: 1 },
+      MATRICULA: { x: 153, y: 712, page: 1 },
       FAMILIAR1_NOME: { x: 70, y: 673, page: 1 },
       FAMILIAR1_NASCIMENTO: { x: 352, y: 673, page: 1 },
       FAMILIAR1_CPF: { x: 410, y: 673, page: 1 },
-      FAMILIAR2_NOME: { x: 70, y: 662, page: 1 },
-      FAMILIAR2_NASCIMENTO: { x: 352, y: 662, page: 1 },
-      FAMILIAR2_CPF: { x: 410, y: 662, page: 1 },
-      FAMILIAR3_NOME: { x: 70, y: 648, page: 1 },
-      FAMILIAR3_NASCIMENTO: { x: 352, y: 648, page: 1 },
-      FAMILIAR3_CPF: { x: 410, y: 648, page: 1 },
+      FAMILIAR2_NOME: { x: 70, y: 660, page: 1 },
+      FAMILIAR2_NASCIMENTO: { x: 352, y: 660, page: 1 },
+      FAMILIAR2_CPF: { x: 410, y: 660, page: 1 },
+      FAMILIAR3_NOME: { x: 70, y: 647, page: 1 },
+      FAMILIAR3_NASCIMENTO: { x: 352, y: 647, page: 1 },
+      FAMILIAR3_CPF: { x: 410, y: 647, page: 1 },
       FAMILIAR4_NOME: { x: 70, y: 634, page: 1 },
       FAMILIAR4_NASCIMENTO: { x: 352, y: 634, page: 1 },
       FAMILIAR4_CPF: { x: 410, y: 634, page: 1 },
       FAMILIAR5_NOME: { x: 70, y: 622, page: 1 },
       FAMILIAR5_NASCIMENTO: { x: 352, y: 622, page: 1 },
       FAMILIAR5_CPF: { x: 410, y: 622, page: 1 },
-      FAMILIAR6_NOME: { x: 70, y: 610, page: 1 },
-      FAMILIAR6_NASCIMENTO: { x: 352, y: 610, page: 1 },
-      FAMILIAR6_CPF: { x: 410, y: 610, page: 1 },
-      VALOR: { x: 200, y: 416, page: 1 },
-      DATA: { x: 120, y: 370, page: 1 },
-      SIGN: { x: 85, y: 310, page: 1 },
+      FAMILIAR6_NOME: { x: 70, y: 609, page: 1 },
+      FAMILIAR6_NASCIMENTO: { x: 352, y: 609, page: 1 },
+      FAMILIAR6_CPF: { x: 410, y: 609, page: 1 },
+      VALOR: { x: 120, y: 417, page: 1 },
+      VALOR1: { x: 143, y: 408, page: 1 },
+      DATA: { x: 120, y: 361, page: 1 },
+      SIGN: { x: 85, y: 300, page: 1 },
     }
   }
 };
@@ -254,61 +226,16 @@ app.post('/generate-pdfs', async (req, res) => {
 
     const generated = [];
 
-    // Função para limpar CPF/RG (remover pontos, traços, espaços)
-    const limparDocumento = (doc) => doc ? doc.replace(/[^\d]/g, '') : '';
-
-    // Função para desenhar CPF com espaçamento especial para os últimos 2 dígitos
-    const desenharCPFComEspaco = (page, cpf, posicaoBase, tamanho, font, espacamentoNormal, espacamentoFinal) => {
-      const digitos = limparDocumento(cpf);
-
-      if (digitos.length === 11) {
-        const primeiros9 = digitos.substring(0, 9);
-        const ultimos2 = digitos.substring(9);
-
-        primeiros9.split('').forEach((digito, index) => {
-          const x = posicaoBase.x + (index * espacamentoNormal);
-          page.drawText(digito, {
-            x,
-            y: posicaoBase.y,
-            size: tamanho,
-            font
-          });
-        });
-
-        ultimos2.split('').forEach((digito, index) => {
-          const x = posicaoBase.x + (9 * espacamentoNormal) + espacamentoFinal + (index * espacamentoNormal);
-          page.drawText(digito, {
-            x,
-            y: posicaoBase.y,
-            size: tamanho,
-            font
-          });
-        });
-      } else {
-        digitos.split('').forEach((digito, index) => {
-          const x = posicaoBase.x + (index * espacamentoNormal);
-          page.drawText(digito, {
-            x,
-            y: posicaoBase.y,
-            size: tamanho,
-            font
-          });
-        });
+    // Função para formatar CPF no padrão 555.555.555-55
+    const formatarCPF = (cpf) => {
+      if (!cpf) return '';
+      // Remove tudo que não é número
+      const numeros = cpf.replace(/\D/g, '');
+      // Aplica a máscara de CPF
+      if (numeros.length === 11) {
+        return numeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
       }
-    };
-
-    // Função para desenhar RG com espaçamento regular
-    const desenharDigitosComEspaco = (page, texto, posicaoBase, tamanho, font, espacamento = 5) => {
-      const digitos = limparDocumento(texto);
-      digitos.split('').forEach((digito, index) => {
-        const x = posicaoBase.x + (index * espacamento);
-        page.drawText(digito, {
-          x,
-          y: posicaoBase.y,
-          size: tamanho,
-          font
-        });
-      });
+      return cpf; // Retorna original se não tiver 11 dígitos
     };
 
     for (const id of contratosArray) {
@@ -321,6 +248,7 @@ app.post('/generate-pdfs', async (req, res) => {
       const pdfDoc = await PDFDocument.load(fs.readFileSync(file));
       const pages = pdfDoc.getPages();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontSize = 10;
 
       // Processa campos de dependentes se existirem no formData
       if (id === 'vitalmed' && formData.dependents) {
@@ -333,68 +261,34 @@ app.post('/generate-pdfs', async (req, res) => {
         });
       }
 
-      // Tratamento especial para CPF e RG no contrato vitalmed
+      // Processa todos os campos normalmente (incluindo CPF formatado)
       let formDataClone = { ...formData };
 
-      if (id === 'vitalmed') {
-        const cpfOriginal = formDataClone.CPF;
+      // Formata o CPF principal
+      if (formDataClone.CPF) {
+        formDataClone.CPF = formatarCPF(formDataClone.CPF);
+      }
 
-        delete formDataClone.CPF;
-
-        Object.entries(formDataClone).forEach(([k, v]) => {
-          const pos = positions[k];
-          if (!v || !pos) return;
-          (Array.isArray(pos) ? pos : [pos]).forEach(p => {
-            const idx = p.page ?? 0;
-            if (idx < pages.length)
-              pages[idx].drawText(String(v), { x: p.x, y: p.y, size: 10, font: helv });
-          });
-        });
-
-        if (cpfOriginal) {
-          desenharCPFComEspaco(
-            pages[0],
-            cpfOriginal,
-            { x: positions.CPF.x, y: positions.CPF.y },
-            10,
-            helv,
-            12,
-            6
-          );
-        }
-
-        if (formData.dependents) {
-          formData.dependents.forEach((dependent, index) => {
-            if (index < 6 && dependent.CPF) {
-              const depNum = index + 1;
-              const positionKey = `FAMILIAR${depNum}_CPF`;
-              const position = positions[positionKey];
-
-              if (position) {
-                desenharCPFComEspaco(
-                  pages[position.page || 0],
-                  dependent.CPF,
-                  { x: position.x, y: position.y },
-                  10,
-                  helv,
-                  12,
-                  6
-                );
-              }
-            }
-          });
-        }
-      } else {
-        Object.entries(formDataClone).forEach(([k, v]) => {
-          const pos = positions[k];
-          if (!v || !pos) return;
-          (Array.isArray(pos) ? pos : [pos]).forEach(p => {
-            const idx = p.page ?? 0;
-            if (idx < pages.length)
-              pages[idx].drawText(String(v), { x: p.x, y: p.y, size: 10, font: helv });
-          });
+      // Adiciona CPFs dos dependentes aos dados do formulário (vitalmed)
+      if (id === 'vitalmed' && formData.dependents) {
+        formData.dependents.forEach((dependent, index) => {
+          if (index < 6 && dependent.CPF) {
+            const depNum = index + 1;
+            formDataClone[`FAMILIAR${depNum}_CPF`] = formatarCPF(dependent.CPF);
+          }
         });
       }
+
+      // Desenha todos os campos de texto
+      Object.entries(formDataClone).forEach(([k, v]) => {
+        const pos = positions[k];
+        if (!v || !pos) return;
+        (Array.isArray(pos) ? pos : [pos]).forEach(p => {
+          const idx = p.page ?? 0;
+          if (idx < pages.length)
+            pages[idx].drawText(String(v), { x: p.x, y: p.y, size: fontSize, font: helv });
+        });
+      });
 
       // Adiciona a assinatura
       if (positions.SIGN) {

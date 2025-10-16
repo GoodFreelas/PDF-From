@@ -33,6 +33,8 @@ FORM_DATA='{
     "CARGO": "Analista",
     "ADMISSAO": "01/01/2020",
     "PIS": "12345678901",
+    "VALOR": "50,00",
+    "VALOR1": "35,00",
     "dependents": [
       {
         "NOME": "Maria Silva Santos",
@@ -42,7 +44,7 @@ FORM_DATA='{
     ]
   },
   "signatureData": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-  "contratos": "saude,qualidonto"
+  "contratos": "qualidonto,vitalmed"
 }'
 
 # Teste 1: Verificar status do servidor
@@ -51,8 +53,8 @@ curl -s "$API_BASE_URL/api/check-status" | jq '.' || echo "❌ Erro ao conectar 
 
 echo ""
 
-# Teste 2: Envio do formulário
-echo "🚀 Testando envio do formulário..."
+# Teste 2: Envio do formulário com ambos os planos
+echo "🚀 Testando envio do formulário (Qualidonto + Vitalmed)..."
 curl -s -X POST \
   -H "Content-Type: application/json" \
   -d "$FORM_DATA" \
@@ -60,8 +62,8 @@ curl -s -X POST \
 
 echo ""
 
-# Teste 3: Teste com apenas um plano
-echo "🧪 Testando com apenas o plano de saúde..."
+# Teste 3: Teste com apenas o plano Qualidonto
+echo "🧪 Testando com apenas o plano Qualidonto..."
 curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{
@@ -84,17 +86,18 @@ curl -s -X POST \
       "ORGAO": "TI",
       "CARGO": "Desenvolvedor",
       "ADMISSAO": "01/06/2023",
-      "PIS": "98765432100"
+      "PIS": "98765432100",
+      "VALOR1": "35,00"
     },
     "signatureData": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-    "contratos": "saude"
+    "contratos": "qualidonto"
   }' \
   "$API_BASE_URL/generate-pdfs" | jq '.' || echo "❌ Erro no teste com plano único"
 
 echo ""
 
-# Teste 4: Teste com plano vitalmed (inclui dependentes)
-echo "🧪 Testando com plano vitalmed (inclui dependentes)..."
+# Teste 4: Teste com plano vitalmed (inclui dependentes e ambos valores)
+echo "🧪 Testando com plano Vitalmed (inclui dependentes)..."
 curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{
@@ -105,9 +108,12 @@ curl -s -X POST \
       "NASCIMENTO": "10/08/1985",
       "EMAIL": "carlos@email.com",
       "TELEFONE1": "(11) 77777-7777",
+      "TELEFONE2": "(11) 66666-6666",
+      "TELEFONE3": "(11) 55555-5555",
       "DATA": "15/12/2024",
       "RUA": "Rua das Palmeiras",
       "NUMERO": "456",
+      "COMPLEMENTO": "Casa",
       "BAIRRO": "Jardins",
       "CIDADE": "São Paulo",
       "ESTADO": "SP",
@@ -118,6 +124,8 @@ curl -s -X POST \
       "CARGO": "Gerente",
       "ADMISSAO": "01/03/2022",
       "PIS": "11122233344",
+      "VALOR": "50,00",
+      "VALOR1": "35,00",
       "dependents": [
         {
           "NOME": "Ana Silva",
@@ -137,7 +145,57 @@ curl -s -X POST \
   "$API_BASE_URL/generate-pdfs" | jq '.' || echo "❌ Erro no teste com vitalmed"
 
 echo ""
+
+# Teste 5: Teste com todos os planos disponíveis
+echo "🧪 Testando com todos os planos (Qualidonto + Vitalmed)..."
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "formData": {
+      "NOME": "Roberto Santos",
+      "RG": "444555666",
+      "CPF": "44455566677",
+      "NASCIMENTO": "25/09/1988",
+      "EMAIL": "roberto@email.com",
+      "TELEFONE1": "(11) 44444-4444",
+      "TELEFONE2": "(11) 33333-3333",
+      "DATA": "15/12/2024",
+      "RUA": "Rua dos Pinheiros",
+      "NUMERO": "789",
+      "BAIRRO": "Pinheiros",
+      "CIDADE": "São Paulo",
+      "ESTADO": "SP",
+      "CEP": "05422-000",
+      "EMPRESA": "Empresa Completa Ltda",
+      "MATRICULA": "77777",
+      "ORGAO": "Administração",
+      "CARGO": "Coordenador",
+      "ADMISSAO": "15/08/2021",
+      "PIS": "44455566677",
+      "VALOR": "50,00",
+      "VALOR1": "35,00",
+      "dependents": [
+        {
+          "NOME": "Paula Santos",
+          "NASCIMENTO": "10/01/1992",
+          "CPF": "11122233344"
+        }
+      ]
+    },
+    "signatureData": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+    "contratos": "qualidonto,vitalmed"
+  }' \
+  "$API_BASE_URL/generate-pdfs" | jq '.' || echo "❌ Erro no teste com todos os planos"
+
+echo ""
 echo "✅ Testes concluídos!"
+echo ""
+echo "📋 Resumo dos testes:"
+echo "   1. ✓ Status do servidor"
+echo "   2. ✓ Qualidonto + Vitalmed (com dependentes)"
+echo "   3. ✓ Apenas Qualidonto (VALOR1 apenas)"
+echo "   4. ✓ Apenas Vitalmed (VALOR + VALOR1)"
+echo "   5. ✓ Todos os planos disponíveis"
 echo ""
 echo "💡 Dicas:"
 echo "   - Se houver erros de conexão, certifique-se de que o backend está rodando:"
@@ -145,3 +203,7 @@ echo "     cd backend && npm start"
 echo "   - Para instalar o jq (formatação JSON):"
 echo "     sudo apt install jq  # Ubuntu/Debian"
 echo "     brew install jq      # macOS"
+echo ""
+echo "📝 Observações sobre os valores:"
+echo "   - Qualidonto: usa apenas VALOR1"
+echo "   - Vitalmed: usa VALOR e VALOR1"

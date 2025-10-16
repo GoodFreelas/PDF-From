@@ -51,6 +51,7 @@ RESPONSE=$(curl -s -X POST \
       "ADMISSAO": "01/03/2022",
       "PIS": "11122233344",
       "VALOR":  "123",
+      "VALOR1":  "123",
       "dependents": [
         {
           "NOME": "Ana Silva Santos",

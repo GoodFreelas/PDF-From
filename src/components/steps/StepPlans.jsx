@@ -1,58 +1,58 @@
-import { useState, useEffect, useRef } from 'react';
-import Cleave from 'cleave.js/react';
-import SignatureCanvas from '../SignatureCanvas';
-import CustomAlert from '../CustomAlert';
-import IconData from '../icons/IconData'; 
+import { useState, useEffect, useRef } from "react";
+import Cleave from "cleave.js/react";
+import SignatureCanvas from "../SignatureCanvas";
+import CustomAlert from "../CustomAlert";
+import IconData from "../icons/IconData";
 
 // Funções de validação
 const validations = {
   // Validação de CPF
   CPF: (value) => {
     // Remove caracteres não numéricos
-    const cpf = value.replace(/[^\d]/g, '');
-    
+    const cpf = value.replace(/[^\d]/g, "");
+
     // Verifica se tem 11 dígitos
     if (cpf.length !== 11) return false;
-    
+
     // Verifica se todos os dígitos são iguais
     if (/^(\d)\1+$/.test(cpf)) return false;
-    
+
     // Validação dos dígitos verificadores
     let sum = 0;
     let remainder;
-    
+
     // Primeiro dígito verificador
     for (let i = 1; i <= 9; i++) {
       sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
     }
-    
+
     remainder = (sum * 10) % 11;
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cpf.substring(9, 10))) return false;
-    
+
     // Segundo dígito verificador
     sum = 0;
     for (let i = 1; i <= 10; i++) {
       sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
     }
-    
+
     remainder = (sum * 10) % 11;
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cpf.substring(10, 11))) return false;
-    
+
     return true;
   },
-  
+
   // Validação de Data de Nascimento
   NASCIMENTO: (value) => {
     // Verifica formato DD/MM/AAAA
     const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    
+
     if (!dateRegex.test(value)) return false;
-    
+
     const [_, day, month, year] = value.match(dateRegex);
     const date = new Date(year, month - 1, day);
-    
+
     // Verifica se é uma data válida
     if (
       date.getDate() !== parseInt(day) ||
@@ -61,51 +61,68 @@ const validations = {
     ) {
       return false;
     }
-    
+
     // Verifica se a data não é futura
     const today = new Date();
     if (date > today) return false;
-    
+
     return true;
   },
-  
+
   // Validação de valor monetário
   VALOR: (value) => {
     if (!value) return false;
-    
+
     // Remove o R$ e espaços
-    const cleanValue = value.replace(/R\$\s?/g, '');
-    
+    const cleanValue = value.replace(/R\$\s?/g, "");
+
     // Se estiver vazio após remoção de R$, é inválido
     if (!cleanValue.trim()) return false;
-    
+
     // Verifica se há pelo menos um dígito
     return /\d/.test(cleanValue);
   },
-  
+
+  VALOR1: (value) => {
+    if (!value) return false;
+
+    // Remove o R$ e espaços
+    const cleanValue = value.replace(/R\$\s?/g, "");
+
+    // Se estiver vazio após remoção de R$, é inválido
+    if (!cleanValue.trim()) return false;
+
+    // Verifica se há pelo menos um dígito
+    return /\d/.test(cleanValue);
+  },
+
   // Validação de nome (não pode conter números)
   NOME: (value) => {
-    if (!value || value.trim() === '') return false;
-    
+    if (!value || value.trim() === "") return false;
+
     // Verifica se contém apenas letras, espaços e alguns caracteres especiais comuns em nomes
     return /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'.,-]+$/.test(value);
-  }
+  },
 };
 
-export default function StepPlans({ 
-  formData, 
-  handleChange, 
+export default function StepPlans({
+  formData,
+  handleChange,
   handlePlansChange,
   handleDependentsChange,
   handleSubmit,
-  prevStep, 
+  prevStep,
   sigRef,
-  processing
+  processing,
 }) {
-  const [selectedPlans, setSelectedPlans] = useState(formData.selectedPlans || []);
+  const [selectedPlans, setSelectedPlans] = useState(
+    formData.selectedPlans || []
+  );
   const [dependents, setDependents] = useState(formData.dependents || []);
   // Estado para controlar se o vitalmed está selecionado
-  const [isVitalmedSelected, setIsVitalmedSelected] = useState(selectedPlans.includes('vitalmed'));
+  const [isVitalmedSelected, setIsVitalmedSelected] = useState(
+    selectedPlans.includes("vitalmed")
+  );
   // Estado para controlar o alerta personalizado
   const [alert, setAlert] = useState(null);
   // Estado para controlar se o formulário foi validado
@@ -118,13 +135,15 @@ export default function StepPlans({
   const calendarRefs = useRef([]);
 
   const plansOptions = [
-    { id: 'qualidonto', label: 'Qualidonto' },
-    { id: 'vitalmed', label: 'Vitalmed' }
+    { id: "qualidonto", label: "Qualidonto" },
+    { id: "vitalmed", label: "Vitalmed" },
   ];
 
   // Inicializa as referências dos calendários quando dependentes mudam
   useEffect(() => {
-    calendarRefs.current = dependents.map((_, i) => calendarRefs.current[i] || null);
+    calendarRefs.current = dependents.map(
+      (_, i) => calendarRefs.current[i] || null
+    );
   }, [dependents]);
 
   // Efeito para fechar o alerta automaticamente após 5 segundos
@@ -133,7 +152,7 @@ export default function StepPlans({
       const timer = setTimeout(() => {
         setAlert(null);
       }, 5000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [alert]);
@@ -141,10 +160,10 @@ export default function StepPlans({
   useEffect(() => {
     handlePlansChange(selectedPlans);
     // Atualiza o estado de vitalmed selecionado
-    setIsVitalmedSelected(selectedPlans.includes('vitalmed'));
-    
+    setIsVitalmedSelected(selectedPlans.includes("vitalmed"));
+
     // Se o vitalmed for desmarcado, limpar os dependentes
-    if (!selectedPlans.includes('vitalmed') && dependents.length > 0) {
+    if (!selectedPlans.includes("vitalmed") && dependents.length > 0) {
       setDependents([]);
       setDependentErrors([]);
     }
@@ -157,25 +176,25 @@ export default function StepPlans({
   // Função para lidar com alterações nos campos Cleave
   const handleCleaveChange = (e) => {
     const { name, rawValue, value } = e.target;
-    
+
     // Cria um evento sintético para ser compatível com o handleChange original
     const syntheticEvent = {
       target: {
         name,
         value,
-        rawValue
-      }
+        rawValue,
+      },
     };
-    
+
     // Chama a função handleChange original
     handleChange(syntheticEvent);
-    
+
     // Valida o campo se o formulário já foi validado
     if (formValidated && validations[name]) {
       const isValid = validations[name](value);
-      setValidationErrors(prev => ({
+      setValidationErrors((prev) => ({
         ...prev,
-        [name]: isValid ? null : true
+        [name]: isValid ? null : true,
       }));
     }
   };
@@ -183,33 +202,36 @@ export default function StepPlans({
   // Função para campos que não usam Cleave
   const handleRegularChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Chama a função handleChange original
     handleChange(e);
-    
+
     // Valida o campo se o formulário já foi validado
     if (formValidated && validations[name]) {
       const isValid = validations[name](value);
-      setValidationErrors(prev => ({
+      setValidationErrors((prev) => ({
         ...prev,
-        [name]: isValid ? null : true
+        [name]: isValid ? null : true,
       }));
     }
   };
 
   const togglePlan = (planId) => {
-    setSelectedPlans(prev =>
+    setSelectedPlans((prev) =>
       prev.includes(planId)
-        ? prev.filter(id => id !== planId)
+        ? prev.filter((id) => id !== planId)
         : [...prev, planId]
     );
   };
 
   const addDependent = () => {
     if (dependents.length < 6) {
-      setDependents([...dependents, { NOME: '', CPF: '', NASCIMENTO: '' }]);
+      setDependents([...dependents, { NOME: "", CPF: "", NASCIMENTO: "" }]);
       // Adiciona entrada para erros de dependente
-      setDependentErrors([...dependentErrors, { NOME: false, CPF: false, NASCIMENTO: false }]);
+      setDependentErrors([
+        ...dependentErrors,
+        { NOME: false, CPF: false, NASCIMENTO: false },
+      ]);
     }
   };
 
@@ -217,7 +239,7 @@ export default function StepPlans({
     const newDependents = [...dependents];
     newDependents.splice(index, 1);
     setDependents(newDependents);
-    
+
     const newErrors = [...dependentErrors];
     newErrors.splice(index, 1);
     setDependentErrors(newErrors);
@@ -226,21 +248,21 @@ export default function StepPlans({
   // Função para atualizar dependente com formatação usando Cleave
   const handleDependentCleaveChange = (index, field, e) => {
     const { rawValue, value } = e.target;
-    
+
     const newDependents = [...dependents];
     newDependents[index] = { ...newDependents[index], [field]: value };
     setDependents(newDependents);
-    
+
     // Valida o campo se o formulário já foi validado
     if (formValidated) {
       let isValid = true;
-      
-      if (field === 'NOME') {
+
+      if (field === "NOME") {
         isValid = !!value.trim(); // Nome válido se não for vazio após trim
       } else if (validations[field]) {
         isValid = validations[field](value);
       }
-      
+
       const newErrors = [...dependentErrors];
       newErrors[index] = { ...newErrors[index], [field]: !isValid };
       setDependentErrors(newErrors);
@@ -250,27 +272,27 @@ export default function StepPlans({
   // Função para atualizar campos de dependente que não usam Cleave
   const handleDependentRegularChange = (index, field, e) => {
     const { value } = e.target;
-    
+
     // Aplica formatação para nome (remove números)
     let processedValue = value;
-    if (field === 'NOME') {
-      processedValue = value.replace(/[0-9]/g, '');
+    if (field === "NOME") {
+      processedValue = value.replace(/[0-9]/g, "");
     }
-    
+
     const newDependents = [...dependents];
     newDependents[index] = { ...newDependents[index], [field]: processedValue };
     setDependents(newDependents);
-    
+
     // Valida o campo se o formulário já foi validado
     if (formValidated) {
       let isValid = true;
-      
-      if (field === 'NOME') {
+
+      if (field === "NOME") {
         isValid = !!processedValue.trim(); // Nome válido se não for vazio após trim
       } else if (validations[field]) {
         isValid = validations[field](processedValue);
       }
-      
+
       const newErrors = [...dependentErrors];
       newErrors[index] = { ...newErrors[index], [field]: !isValid };
       setDependentErrors(newErrors);
@@ -286,10 +308,10 @@ export default function StepPlans({
 
   // Função para converter data do formato ISO para DD/MM/AAAA
   const formatDateFromCalendar = (isoDate) => {
-    if (!isoDate) return '';
+    if (!isoDate) return "";
     const date = new Date(isoDate);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
@@ -298,12 +320,15 @@ export default function StepPlans({
   const handleDependentCalendarChange = (index, e) => {
     const isoDate = e.target.value;
     const formattedDate = formatDateFromCalendar(isoDate);
-    
+
     // Atualiza o valor no array de dependentes
     const newDependents = [...dependents];
-    newDependents[index] = { ...newDependents[index], NASCIMENTO: formattedDate };
+    newDependents[index] = {
+      ...newDependents[index],
+      NASCIMENTO: formattedDate,
+    };
     setDependents(newDependents);
-    
+
     // Valida o campo
     if (formValidated) {
       const isValid = validations.NASCIMENTO(formattedDate);
@@ -318,40 +343,81 @@ export default function StepPlans({
     setFormValidated(true);
     let hasErrors = false;
 
-    // Verificar se o valor é válido
-    const isValorValid = formData.VALOR && validations.VALOR(formData.VALOR);
-    setValidationErrors(prev => ({ ...prev, VALOR: !isValorValid }));
-    if (!isValorValid) hasErrors = true;
-
-    // Verificar se algum plano foi selecionado
+    // Verificar se pelo menos um plano foi selecionado
     if (selectedPlans.length === 0) {
       hasErrors = true;
+      setAlert({
+        message: "Por favor, selecione pelo menos um plano.",
+        type: "warning",
+      });
+    }
+
+    // Verificar valores baseado nos planos selecionados
+    const needsValor = isVitalmedSelected;
+    const needsValor1 =
+      selectedPlans.includes("qualidonto") || isVitalmedSelected;
+
+    if (needsValor) {
+      const isValorValid = formData.VALOR && validations.VALOR(formData.VALOR);
+      setValidationErrors((prev) => ({ ...prev, VALOR: !isValorValid }));
+      if (!isValorValid) {
+        hasErrors = true;
+        if (!alert) {
+          setAlert({
+            message: "Por favor, preencha o valor de adesão.",
+            type: "warning",
+          });
+        }
+      }
+    }
+
+    if (needsValor1) {
+      const isValor1Valid =
+        formData.VALOR1 && validations.VALOR1(formData.VALOR1);
+      setValidationErrors((prev) => ({ ...prev, VALOR1: !isValor1Valid }));
+      if (!isValor1Valid) {
+        hasErrors = true;
+        if (!alert) {
+          setAlert({
+            message: "Por favor, preencha o valor da mensalidade.",
+            type: "warning",
+          });
+        }
+      }
     }
 
     // Verificar a assinatura
     if (sigRef.current?.isEmpty()) {
       hasErrors = true;
+      if (!alert) {
+        setAlert({
+          message: "Por favor, assine antes de continuar.",
+          type: "warning",
+        });
+      }
     }
 
     // Validar dependentes se o vitalmed estiver selecionado
     if (isVitalmedSelected && dependents.length > 0) {
-      const newDependentErrors = dependents.map(dep => ({
+      const newDependentErrors = dependents.map((dep) => ({
         NOME: !dep.NOME,
         CPF: !dep.CPF || (dep.CPF && !validations.CPF(dep.CPF)),
-        NASCIMENTO: !dep.NASCIMENTO || (dep.NASCIMENTO && !validations.NASCIMENTO(dep.NASCIMENTO))
+        NASCIMENTO:
+          !dep.NASCIMENTO ||
+          (dep.NASCIMENTO && !validations.NASCIMENTO(dep.NASCIMENTO)),
       }));
-      
+
       setDependentErrors(newDependentErrors);
-      
-      const hasDependentErrors = newDependentErrors.some(err => 
-        err.NOME || err.CPF || err.NASCIMENTO
+
+      const hasDependentErrors = newDependentErrors.some(
+        (err) => err.NOME || err.CPF || err.NASCIMENTO
       );
-      
+
       if (hasDependentErrors) {
         hasErrors = true;
         setAlert({
-          message: 'Por favor, corrija os erros nos dados dos dependentes.',
-          type: 'warning'
+          message: "Por favor, corrija os erros nos dados dos dependentes.",
+          type: "warning",
         });
       }
     }
@@ -359,24 +425,6 @@ export default function StepPlans({
     // Se não há erros, enviar o formulário
     if (!hasErrors) {
       handleSubmit(e);
-    } else {
-      // Mostra mensagem de erro específica dependendo do que está faltando
-      if (!isValorValid) {
-        setAlert({
-          message: 'Por favor, preencha um valor válido.',
-          type: 'warning'
-        });
-      } else if (selectedPlans.length === 0) {
-        setAlert({
-          message: 'Por favor, selecione pelo menos um plano.',
-          type: 'warning'
-        });
-      } else if (sigRef.current?.isEmpty()) {
-        setAlert({
-          message: 'Por favor, assine antes de continuar.',
-          type: 'warning'
-        });
-      }
     }
   };
 
@@ -390,52 +438,85 @@ export default function StepPlans({
     return validationErrors[fieldName];
   };
 
-  const inputStyle = 'h-[45px] rounded-[10px] border border-gray-300 px-[20px] w-full focus:outline-none focus:border-[#00AE71] text-black';
-  ;
+  const inputStyle =
+    "h-[45px] rounded-[10px] border border-gray-300 px-[20px] w-full focus:outline-none focus:border-[#00AE71] text-black";
 
   return (
     <div className="space-y-6 relative">
       {/* Exibe o alerta personalizado quando necessário */}
       {alert && (
-        <CustomAlert 
-          message={alert.message} 
-          type={alert.type} 
-          onClose={() => setAlert(null)} 
+        <CustomAlert
+          message={alert.message}
+          type={alert.type}
+          onClose={() => setAlert(null)}
         />
       )}
 
+      {/* Campo VALOR (Adesão) - visível apenas se Vitalmed estiver selecionado */}
+      {isVitalmedSelected && (
+        <div className="text-gray-500 focus-within:text-black">
+          <label className="block text-sm mb-1">Valor de Adesão</label>
+          <Cleave
+            name="VALOR"
+            required
+            value={formData.VALOR || ""}
+            onChange={handleCleaveChange}
+            className={`${inputStyle} ${
+              isFieldInvalid("VALOR") ? "border-red-500 bg-red-50" : ""
+            }`}
+            placeholder="R$ 0,00"
+            options={{
+              numeral: true,
+              numeralThousandsGroupStyle: "thousand",
+              prefix: "R$ ",
+              rawValueTrimPrefix: true,
+              numeralDecimalMark: ",",
+              delimiter: ".",
+            }}
+          />
+          {isFieldInvalid("VALOR") && (
+            <p className="text-xs text-red-500 mt-1">
+              Por favor, insira um valor válido
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Campo VALOR1 (Mensalidade) - sempre visível */}
       <div className="text-gray-500 focus-within:text-black">
-        <label className="block text-sm mb-1">
-          Valor
-        </label>
+        <label className="block text-sm mb-1">Valor da Mensalidade</label>
         <Cleave
-          name="VALOR"
+          name="VALOR1"
           required
-          value={formData.VALOR || ''}
+          value={formData.VALOR1 || ""}
           onChange={handleCleaveChange}
-          className={`${inputStyle} ${isFieldInvalid('VALOR') ? 'border-red-500 bg-red-50' : ''}`}
+          className={`${inputStyle} ${
+            isFieldInvalid("VALOR1") ? "border-red-500 bg-red-50" : ""
+          }`}
           placeholder="R$ 0,00"
           options={{
             numeral: true,
-            numeralThousandsGroupStyle: 'thousand',
-            prefix: 'R$ ',
+            numeralThousandsGroupStyle: "thousand",
+            prefix: "R$ ",
             rawValueTrimPrefix: true,
-            numeralDecimalMark: ',',
-            delimiter: '.'
+            numeralDecimalMark: ",",
+            delimiter: ".",
           }}
         />
-        {isFieldInvalid('VALOR') && (
-          <p className="text-xs text-red-500 mt-1">Por favor, insira um valor válido</p>
+        {isFieldInvalid("VALOR1") && (
+          <p className="text-xs text-red-500 mt-1">
+            Por favor, insira um valor válido
+          </p>
         )}
       </div>
 
       <div>
         <div className="space-y-4">
-          {plansOptions.map(plan => {
+          {plansOptions.map((plan) => {
             const isSelected = selectedPlans.includes(plan.id);
             return (
               <div key={plan.id} className="space-y-1">
-                <div 
+                <div
                   className="flex items-center justify-between cursor-pointer"
                   onClick={() => togglePlan(plan.id)}
                 >
@@ -444,9 +525,9 @@ export default function StepPlans({
                       className="text-black mb-1"
                       style={{
                         fontWeight: 400,
-                        fontSize: '20px',
-                        lineHeight: '100%',
-                        letterSpacing: '0%',
+                        fontSize: "20px",
+                        lineHeight: "100%",
+                        letterSpacing: "0%",
                       }}
                     >
                       {plan.label}
@@ -455,10 +536,10 @@ export default function StepPlans({
                       className="text-gray-500"
                       style={{
                         fontWeight: 400,
-                        fontSize: '14px',
-                        lineHeight: '100%',
-                        letterSpacing: '0%',
-                        textAlign: 'right',
+                        fontSize: "14px",
+                        lineHeight: "100%",
+                        letterSpacing: "0%",
+                        textAlign: "right",
                       }}
                     >
                       Clique aqui para ler os termos
@@ -468,12 +549,12 @@ export default function StepPlans({
                   {/* Botão toggle com bolinha animada */}
                   <div
                     className={`w-[35px] h-[20px] rounded-full p-[2px] flex items-center transition-colors duration-300 ${
-                      isSelected ? 'bg-green-500' : 'bg-gray-300'
+                      isSelected ? "bg-green-500" : "bg-gray-300"
                     }`}
                   >
                     <div
                       className={`w-[16px] h-[16px] bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-                        isSelected ? 'translate-x-[15px]' : 'translate-x-0'
+                        isSelected ? "translate-x-[15px]" : "translate-x-0"
                       }`}
                     />
                   </div>
@@ -483,7 +564,9 @@ export default function StepPlans({
           })}
         </div>
         {selectedPlans.length === 0 && formValidated && (
-          <p className="text-xs text-red-500 mt-1">Por favor, selecione pelo menos um plano</p>
+          <p className="text-xs text-red-500 mt-1">
+            Por favor, selecione pelo menos um plano
+          </p>
         )}
       </div>
 
@@ -503,7 +586,10 @@ export default function StepPlans({
           </div>
 
           {dependents.map((dependent, index) => (
-            <div key={index} className="p-4 border rounded mb-4 bg-gray-50 space-y-3">
+            <div
+              key={index}
+              className="p-4 border rounded mb-4 bg-gray-50 space-y-3"
+            >
               <div className="flex justify-between items-center">
                 <h4 className="text-sm font-medium">Dependente {index + 1}</h4>
                 <button
@@ -517,37 +603,47 @@ export default function StepPlans({
 
               <div className="space-y-2">
                 <div className="text-gray-500 focus-within:text-black">
-                  <label className="block text-sm mb-0.5">
-                    Nome
-                  </label>
+                  <label className="block text-sm mb-0.5">Nome</label>
                   <input
                     type="text"
-                    value={dependent.NOME || ''}
-                    onChange={(e) => handleDependentRegularChange(index, 'NOME', e)}
-                    className={`${inputStyle} ${isDependentFieldInvalid(index, 'NOME') ? 'border-red-500 bg-red-50' : ''}`}
+                    value={dependent.NOME || ""}
+                    onChange={(e) =>
+                      handleDependentRegularChange(index, "NOME", e)
+                    }
+                    className={`${inputStyle} ${
+                      isDependentFieldInvalid(index, "NOME")
+                        ? "border-red-500 bg-red-50"
+                        : ""
+                    }`}
                     placeholder="Nome completo"
                   />
-                  {isDependentFieldInvalid(index, 'NOME') && (
-                    <p className="text-xs text-red-500 mt-1">Este campo é obrigatório</p>
+                  {isDependentFieldInvalid(index, "NOME") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Este campo é obrigatório
+                    </p>
                   )}
                 </div>
 
                 <div className="text-gray-500 focus-within:text-black">
-                  <label className="block text-sm mb-0.5">
-                    CPF
-                  </label>
+                  <label className="block text-sm mb-0.5">CPF</label>
                   <Cleave
-                    value={dependent.CPF || ''}
-                    onChange={(e) => handleDependentCleaveChange(index, 'CPF', e)}
-                    className={`${inputStyle} ${isDependentFieldInvalid(index, 'CPF') ? 'border-red-500 bg-red-50' : ''}`}
+                    value={dependent.CPF || ""}
+                    onChange={(e) =>
+                      handleDependentCleaveChange(index, "CPF", e)
+                    }
+                    className={`${inputStyle} ${
+                      isDependentFieldInvalid(index, "CPF")
+                        ? "border-red-500 bg-red-50"
+                        : ""
+                    }`}
                     placeholder="000.000.000-00"
                     options={{
-                      delimiters: ['.', '.', '-'],
+                      delimiters: [".", ".", "-"],
                       blocks: [3, 3, 3, 2],
-                      numericOnly: true
+                      numericOnly: true,
                     }}
                   />
-                  {isDependentFieldInvalid(index, 'CPF') && (
+                  {isDependentFieldInvalid(index, "CPF") && (
                     <p className="text-xs text-red-500 mt-1">CPF inválido</p>
                   )}
                 </div>
@@ -558,34 +654,42 @@ export default function StepPlans({
                   </label>
                   <div className="relative">
                     <Cleave
-                      value={dependent.NASCIMENTO || ''}
-                      onChange={(e) => handleDependentCleaveChange(index, 'NASCIMENTO', e)}
-                      className={`${inputStyle} pr-12 ${isDependentFieldInvalid(index, 'NASCIMENTO') ? 'border-red-500 bg-red-50' : ''}`}
+                      value={dependent.NASCIMENTO || ""}
+                      onChange={(e) =>
+                        handleDependentCleaveChange(index, "NASCIMENTO", e)
+                      }
+                      className={`${inputStyle} pr-12 ${
+                        isDependentFieldInvalid(index, "NASCIMENTO")
+                          ? "border-red-500 bg-red-50"
+                          : ""
+                      }`}
                       placeholder="DD/MM/AAAA"
                       options={{
                         date: true,
-                        datePattern: ['d', 'm', 'Y']
+                        datePattern: ["d", "m", "Y"],
                       }}
                     />
-                    <button 
+                    <button
                       type="button"
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer border-none bg-transparent p-0 m-0 flex items-center justify-center"
                       onClick={() => openDependentCalendar(index)}
                     >
                       <IconData className="w-5 h-5" />
                     </button>
-                    
+
                     {/* Calendário escondido */}
                     <input
-                      ref={el => calendarRefs.current[index] = el}
+                      ref={(el) => (calendarRefs.current[index] = el)}
                       type="date"
                       className="opacity-0 absolute w-0 h-0"
                       onChange={(e) => handleDependentCalendarChange(index, e)}
-                      max={new Date().toISOString().split('T')[0]} // Limita até hoje
+                      max={new Date().toISOString().split("T")[0]} // Limita até hoje
                     />
                   </div>
-                  {isDependentFieldInvalid(index, 'NASCIMENTO') && (
-                    <p className="text-xs text-red-500 mt-1">Data de nascimento inválida</p>
+                  {isDependentFieldInvalid(index, "NASCIMENTO") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Data de nascimento inválida
+                    </p>
                   )}
                 </div>
               </div>
@@ -595,29 +699,31 @@ export default function StepPlans({
       )}
 
       <div className="pt-4 mt-4">
-        <label className="block text-sm mb-1">
-          Assinatura
-        </label>
+        <label className="block text-sm mb-1">Assinatura</label>
         <p
           className="text-gray-500 text-sm mb-2"
           style={{
-            fontFamily: 'Roboto',
+            fontFamily: "Roboto",
             fontWeight: 400,
-            fontSize: '14px',
-            lineHeight: '100%',
-            letterSpacing: '0%',
-            textAlign: 'left',
+            fontSize: "14px",
+            lineHeight: "100%",
+            letterSpacing: "0%",
+            textAlign: "left",
           }}
         >
           Escreva a sua assinatura abaixo com o mouse ou dedo
         </p>
 
         <div
-          className={`relative bg-transparent border rounded-[10px] p-[20px] ${sigRef.current?.isEmpty() && formValidated ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+          className={`relative bg-transparent border rounded-[10px] p-[20px] ${
+            sigRef.current?.isEmpty() && formValidated
+              ? "border-red-500 bg-red-50"
+              : "border-gray-300"
+          }`}
         >
           <SignatureCanvas
             ref={sigRef}
-            canvasProps={{ className: 'w-full h-full' }}
+            canvasProps={{ className: "w-full h-full" }}
           />
 
           <button
@@ -629,7 +735,9 @@ export default function StepPlans({
           </button>
         </div>
         {sigRef.current?.isEmpty() && formValidated && (
-          <p className="text-xs text-red-500 mt-1">Por favor, adicione sua assinatura</p>
+          <p className="text-xs text-red-500 mt-1">
+            Por favor, adicione sua assinatura
+          </p>
         )}
       </div>
 
@@ -650,14 +758,30 @@ export default function StepPlans({
         >
           {processing ? (
             <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               Processando...
             </>
           ) : (
-            'Concluir'
+            "Concluir"
           )}
         </button>
       </div>
