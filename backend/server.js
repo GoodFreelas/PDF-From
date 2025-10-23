@@ -378,19 +378,14 @@ async function sendEmailToAdmin(anexos, formData) {
   }
 
   try {
-    // Email fixo do administrador - substitua pelo seu email
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@ampare.org.br';
+    // Emails fixos dos administradores
+    const ADMIN_EMAILS = 'fabio@ampare.org.br, gabriel@ampare.org.br, marketing@ampare.org.br';
 
-    console.log(`📧 Tentando enviar email para: ${ADMIN_EMAIL}`);
-
-    // Verificar se temos um destinatário válido
-    if (!ADMIN_EMAIL || ADMIN_EMAIL.trim() === '') {
-      throw new Error('Email do administrador não configurado');
-    }
+    console.log(`📧 Tentando enviar email para: ${ADMIN_EMAILS}`);
 
     await transporter.sendMail({
       from: `AMPARE <${process.env.SMTP_USER || 'noreply@ampare.org.br'}>`,
-      to: ADMIN_EMAIL,
+      to: ADMIN_EMAILS,
       subject: `Nova Adesão - ${formData.NOME}`,
       html: `
         <h2>Nova Adesão Recebida</h2>
