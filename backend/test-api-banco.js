@@ -15,11 +15,12 @@ async function testBancoApi() {
       NOME: 'CLIENTE TESTE AUTOMATICO',
       CNPJ: '12.345.678/0001-90',
       AGENCIA: '1234-5',
-      CONTA: '98765-4',
+      CONTA: '00098765-4',
       VALOR: '1.500,00',
-      VALOR_EXTENSO: 'Um mil e quinhentos reais',
-      DATA_DIA: '21',
-      DATA_MES: 'Março'
+      DATA: '2025-03-21',
+      EMAIL: 'teste@email.com',
+      TELEFONE1: '(71) 99999-9999',
+      EMPRESA: 'EMPRESA TESTE'
     }
   };
 
