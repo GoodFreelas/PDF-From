@@ -14,6 +14,7 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import extenso from 'extenso';
 
 /* ───────────────── utilidades ES-modules ─────────────────────────────── */
 const __filename = fileURLToPath(import.meta.url);
@@ -191,16 +192,17 @@ export const CONTRACT_FILES = {
     label: 'Autorização Débito (Banco)',
     file: path.join(__dirname, 'public', 'Banco.pdf'),
     positions: {
-      CPF_IDENTIFICACAO: { x: 290, y: 488 },
+      CPF_IDENTIFICACAO: { x: 255, y: 488 },
       NOME: { x: 70, y: 428 },
-      CPF_BOX_CHARS: { x: 104, y: 376, spacing: 15.5, size: 14 },
-      CNPJ_BOX_CHARS: { x: 275, y: 376, spacing: 12.5, size: 14 },
-      AGENCIA: { x: 100, y: 340 },
-      CONTA: { x: 400, y: 330 },
-      VALOR: { x: 125, y: 290 },
-      VALOR_EXTENSO: { x: 330, y: 290 },
-      DATA_DIA: { x: 180, y: 230 },
-      DATA_MES: { x: 240, y: 230 },
+      CPF_BOX_CHARS: { x: 67, y: 376, spacing: 14.5, size: 14 },
+      CNPJ_BOX_CHARS: { x: 283, y: 376, spacing: 14.7, spaceWidth: 5.3, size: 14 },
+      AGENCIA: { x: 60, y: 335, spacing: 14.5, spaceWidth: 12, size: 14 },
+      CONTA: { x: 260, y: 335, spacing: 14.5, spaceWidth: 12, size: 14 },
+      VALOR: { x: 75, y: 288 },
+      VALOR_EXTENSO: { x: 210, y: 288 },
+      DATA_DIA: { x: 120, y: 231 },
+      DATA_MES: { x: 155, y: 231 },
+      DATA_ANO: { x: 205, y: 231 },
       SIGN: { x: 130, y: 165 },
     }
   }
@@ -281,6 +283,33 @@ app.post('/generate-pdfs', async (req, res) => {
       // Processa todos os campos normalmente (incluindo CPF formatado)
       let formDataClone = { ...formData };
 
+      // Automação: Valor por Extenso
+      if (formDataClone.VALOR) {
+        // Remove R$ e limpa o valor numérico (1.500,00 -> 1500.00)
+        let cleanValor = formDataClone.VALOR.replace('R$ ', '').replace(/\./g, '').replace(',', '.').trim();
+        const numValor = parseFloat(cleanValor);
+        if (!isNaN(numValor)) {
+          // Converte para extenso em português (reais)
+          formDataClone.VALOR_EXTENSO = extenso(numValor, { mode: 'currency', currency: { type: 'BRL' } });
+          // Ajuste fino para o formato da biblioteca (ex: "cinco reais" vs "cinco reais")
+          // A lib extenso já faz um bom trabalho.
+        }
+      }
+
+      // Automação: Decomposição de Data
+      if (formDataClone.DATA) {
+        const d = new Date(formDataClone.DATA + 'T12:00:00'); // Garante meio-dia para evitar fuso horário
+        if (!isNaN(d.getTime())) {
+          formDataClone.DATA_DIA = d.getDate().toString().padStart(2, '0');
+          const meses = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+          ];
+          formDataClone.DATA_MES = meses[d.getMonth()];
+          formDataClone.DATA_ANO = d.getFullYear().toString();
+        }
+      }
+
       // Formata o CPF/CNPJ principal e cria os caracteres para as caixas
       const formatarCNPJ = (cnpj) => {
         const n = cnpj.replace(/\D/g, '');
@@ -291,14 +320,21 @@ app.post('/generate-pdfs', async (req, res) => {
       if (formDataClone.CPF) {
         const rawCPF = formDataClone.CPF.replace(/\D/g, '');
         formDataClone.CPF_IDENTIFICACAO = formatarCPF(rawCPF);
-        formDataClone.CPF_BOX_CHARS = rawCPF.substring(0,9) + "  " + rawCPF.substring(9,11);
+        formDataClone.CPF_BOX_CHARS = rawCPF.substring(0, 9) + "  " + rawCPF.substring(9, 11);
       }
 
       if (formDataClone.CNPJ) {
         const rawCNPJ = formDataClone.CNPJ.replace(/\D/g, '');
         if (rawCNPJ.length === 14) {
-          formDataClone.CNPJ_BOX_CHARS = rawCNPJ.substring(0,8) + "  " + rawCNPJ.substring(8,12) + "  " + rawCNPJ.substring(12,14);
+          formDataClone.CNPJ_BOX_CHARS = rawCNPJ.substring(0, 8) + "  " + rawCNPJ.substring(8, 12) + "    " + rawCNPJ.substring(12, 14);
         }
+      }
+
+      if (formDataClone.AGENCIA) {
+        formDataClone.AGENCIA = formDataClone.AGENCIA.replace('-', '  ');
+      }
+      if (formDataClone.CONTA) {
+        formDataClone.CONTA = formDataClone.CONTA.replace('-', '  ');
       }
 
       // Mantém lógica vitalmed original
@@ -322,17 +358,18 @@ app.post('/generate-pdfs', async (req, res) => {
         if (!v || !pos) return;
         (Array.isArray(pos) ? pos : [pos]).forEach(p => {
           const idx = p.page ?? 0;
-          if (idx < pages.length) {
-            if (p.spacing) {
-              const text = String(v);
-              for (let i = 0; i < text.length; i++) {
-                if (text[i] !== ' ') {
-                  pages[idx].drawText(text[i], { x: p.x + (i * p.spacing), y: p.y, size: p.size || fontSize, font: helv });
-                }
+          if (p.spacing) {
+            const text = String(v);
+            let curX = p.x;
+            for (let i = 0; i < text.length; i++) {
+              if (text[i] !== ' ') {
+                pages[idx].drawText(text[i], { x: curX, y: p.y, size: p.size || fontSize, font: helv });
               }
-            } else {
-              pages[idx].drawText(String(v), { x: p.x, y: p.y, size: p.size || fontSize, font: helv });
+              // Avança o X: se for espaço usa spaceWidth (fallback spacing), se for letra usa spacing
+              curX += (text[i] === ' ') ? (p.spaceWidth || p.spacing) : p.spacing;
             }
+          } else {
+            pages[idx].drawText(String(v), { x: p.x, y: p.y, size: p.size || fontSize, font: helv });
           }
         });
       });
@@ -435,17 +472,26 @@ async function sendEmailToAdmin(anexos, formData) {
       to: ADMIN_EMAILS,
       subject: `Nova Adesão - ${formData.NOME}`,
       html: `
-        <h2>Nova Adesão Recebida</h2>
-        <p><strong>Nome:</strong> ${formData.NOME}</p>
-        <p><strong>Email do Cliente:</strong> ${formData.EMAIL}</p>
-        <p><strong>CPF:</strong> ${formData.CPF}</p>
-        <p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>
-        <p><strong>Empresa:</strong> ${formData.EMPRESA}</p>
+        <h2>Nova Solicitação Recebida</h2>
+        <p><strong>Nome:</strong> ${formData.NOME || 'Não informado'}</p>
+        <p><strong>Email:</strong> ${formData.EMAIL || 'Não informado'}</p>
+        <p><strong>CPF:</strong> ${formData.CPF || 'Não informado'}</p>
+        ${formData.CNPJ ? `<p><strong>CNPJ:</strong> ${formData.CNPJ}</p>` : ''}
+        ${formData.TELEFONE1 ? `<p><strong>Telefone:</strong> ${formData.TELEFONE1}</p>` : ''}
+        ${formData.EMPRESA ? `<p><strong>Empresa:</strong> ${formData.EMPRESA}</p>` : ''}
+        
+        ${formData.AGENCIA ? `
+          <h3>Dados Bancários (Autorização de Débito)</h3>
+          <p><strong>Agência:</strong> ${formData.AGENCIA}</p>
+          <p><strong>Conta:</strong> ${formData.CONTA}</p>
+          <p><strong>Valor:</strong> ${formData.VALOR}</p>
+        ` : ''}
+
         <p><strong>Contratos Selecionados:</strong></p>
         <ul>
           ${anexos.map(a => `<li>${a.label}</li>`).join('')}
         </ul>
-        <p>Os contratos preenchidos seguem em anexo.</p>
+        <p>Os documentos preenchidos e assinados seguem em anexo.</p>
       `,
       attachments: anexos.map(a => ({ filename: a.filename, path: a.path }))
     });
