@@ -34,6 +34,20 @@ export const formatDateFromCalendar = (isoDate) => {
  * Obtém a data máxima permitida (hoje) no formato ISO
  * @returns {string} - Data no formato YYYY-MM-DD
  */
+/**
+ * Obtém a data de 18 anos atrás no formato ISO
+ * @returns {string} - Data no formato YYYY-MM-DD
+ */
+export const getEighteenYearsAgoISO = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 18);
+  return date.toISOString().split('T')[0];
+};
+
+/**
+ * Obtém a data máxima permitida (hoje) no formato ISO
+ * @returns {string} - Data no formato YYYY-MM-DD
+ */
 export const getMaxDateISO = () => {
   return new Date().toISOString().split('T')[0];
 };

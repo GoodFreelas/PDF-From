@@ -13,7 +13,7 @@ import { useFormValidation } from '../../hooks/useFormValidation';
 import { useAlert } from '../../hooks/useAlert';
 
 // Utils
-import { getCurrentDate, formatDateFromCalendar, getMaxDateISO } from '../../utils/dateUtils';
+import { getCurrentDate, formatDateFromCalendar, getMaxDateISO, getEighteenYearsAgoISO } from '../../utils/dateUtils';
 import { createSyntheticEvent } from '../../utils/formUtils';
 import { validations } from '../../utils/validation';
 import { PERSONAL_FIELD_NAMES } from '../../constants/fieldNames';
@@ -85,6 +85,16 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
    */
   const openCalendar = () => {
     if (calendarRef.current) {
+      // Se não tiver data de nascimento, força o calendário a abrir 18 anos atrás
+      if (!formData.NASCIMENTO) {
+        calendarRef.current.value = getEighteenYearsAgoISO();
+      } else {
+        // Sincroniza com o valor atual se existir (formato DD/MM/AAAA -> YYYY-MM-DD)
+        const parts = formData.NASCIMENTO.split('/');
+        if (parts.length === 3) {
+          calendarRef.current.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
       calendarRef.current.showPicker();
     }
   };
@@ -227,9 +237,10 @@ export default function StepPersonal({ formData, handleChange, nextStep }) {
           <input
             ref={calendarRef}
             type="date"
-            className="opacity-0 absolute w-0 h-0"
+            className="absolute invisible w-0 h-0"
             onChange={handleCalendarChange}
-            max={getMaxDateISO()} // Limita até hoje
+            max={getMaxDateISO()}
+            defaultValue={getEighteenYearsAgoISO()}
           />
         </div>
         {isInvalid('NASCIMENTO') && (
