@@ -186,6 +186,23 @@ export const CONTRACT_FILES = {
       DATA: { x: 120, y: 361, page: 1 },
       SIGN: { x: 85, y: 300, page: 1 },
     }
+  },
+  banco: {
+    label: 'Autorização Débito (Banco)',
+    file: path.join(__dirname, 'public', 'Banco.pdf'),
+    positions: {
+      CPF_IDENTIFICACAO: { x: 290, y: 488 },
+      NOME: { x: 70, y: 428 },
+      CPF_BOX_CHARS: { x: 104, y: 376, spacing: 15.5, size: 14 },
+      CNPJ_BOX_CHARS: { x: 275, y: 376, spacing: 12.5, size: 14 },
+      AGENCIA: { x: 100, y: 340 },
+      CONTA: { x: 400, y: 330 },
+      VALOR: { x: 125, y: 290 },
+      VALOR_EXTENSO: { x: 330, y: 290 },
+      DATA_DIA: { x: 180, y: 230 },
+      DATA_MES: { x: 240, y: 230 },
+      SIGN: { x: 130, y: 165 },
+    }
   }
 };
 
@@ -264,7 +281,27 @@ app.post('/generate-pdfs', async (req, res) => {
       // Processa todos os campos normalmente (incluindo CPF formatado)
       let formDataClone = { ...formData };
 
-      // Formata o CPF principal
+      // Formata o CPF/CNPJ principal e cria os caracteres para as caixas
+      const formatarCNPJ = (cnpj) => {
+        const n = cnpj.replace(/\D/g, '');
+        if (n.length === 14) return n.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+        return cnpj;
+      };
+
+      if (formDataClone.CPF) {
+        const rawCPF = formDataClone.CPF.replace(/\D/g, '');
+        formDataClone.CPF_IDENTIFICACAO = formatarCPF(rawCPF);
+        formDataClone.CPF_BOX_CHARS = rawCPF.substring(0,9) + "  " + rawCPF.substring(9,11);
+      }
+
+      if (formDataClone.CNPJ) {
+        const rawCNPJ = formDataClone.CNPJ.replace(/\D/g, '');
+        if (rawCNPJ.length === 14) {
+          formDataClone.CNPJ_BOX_CHARS = rawCNPJ.substring(0,8) + "  " + rawCNPJ.substring(8,12) + "  " + rawCNPJ.substring(12,14);
+        }
+      }
+
+      // Mantém lógica vitalmed original
       if (formDataClone.CPF) {
         formDataClone.CPF = formatarCPF(formDataClone.CPF);
       }
@@ -285,8 +322,18 @@ app.post('/generate-pdfs', async (req, res) => {
         if (!v || !pos) return;
         (Array.isArray(pos) ? pos : [pos]).forEach(p => {
           const idx = p.page ?? 0;
-          if (idx < pages.length)
-            pages[idx].drawText(String(v), { x: p.x, y: p.y, size: fontSize, font: helv });
+          if (idx < pages.length) {
+            if (p.spacing) {
+              const text = String(v);
+              for (let i = 0; i < text.length; i++) {
+                if (text[i] !== ' ') {
+                  pages[idx].drawText(text[i], { x: p.x + (i * p.spacing), y: p.y, size: p.size || fontSize, font: helv });
+                }
+              }
+            } else {
+              pages[idx].drawText(String(v), { x: p.x, y: p.y, size: p.size || fontSize, font: helv });
+            }
+          }
         });
       });
 
