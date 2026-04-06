@@ -90,26 +90,48 @@ app.use(
 app.use('/', express.static(path.join(__dirname, 'public')));
 
 /* ─────────────────────────── Nodemailer ──────────────────────────────── */
-// Verificar se as credenciais SMTP estão definidas
-if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-  console.warn('⚠️  Credenciais SMTP não configuradas. Email será desabilitado.');
+// ── SMTP e ADMIN_EMAIL são OBRIGATÓRIOS ──────────────────────────────────
+const missingVars = [];
+if (!process.env.SMTP_USER)     missingVars.push('SMTP_USER');
+if (!process.env.SMTP_PASSWORD) missingVars.push('SMTP_PASSWORD');
+if (!process.env.ADMIN_EMAIL)   missingVars.push('ADMIN_EMAIL');
+
+if (missingVars.length > 0) {
+  console.error('❌ ERRO FATAL: Variáveis de ambiente obrigatórias não configuradas:');
+  missingVars.forEach(v => console.error(`   → ${v} está ausente`));
+  console.error('Configure com: fly secrets set SMTP_USER=... SMTP_PASSWORD=... ADMIN_EMAIL=...');
+  process.exit(1); // Derruba o servidor imediatamente
 }
 
-const transporter = process.env.SMTP_USER && process.env.SMTP_PASSWORD
-  ? nodemailer.createTransport({
-    host: 'smtpi.ampare.org.br',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD
-    },
-    tls: {
-      rejectUnauthorized: false,
-      minVersion: 'TLSv1.2'
-    }
-  })
-  : null;
+console.log(`✅ SMTP_USER:    ${process.env.SMTP_USER}`);
+console.log(`✅ ADMIN_EMAIL:  ${process.env.ADMIN_EMAIL}`);
+console.log('✅ SMTP_PASSWORD: configurado');
+
+const transporter = nodemailer.createTransport({
+  host: 'smtpi.ampare.org.br',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2'
+  }
+});
+
+// Verifica a conexão SMTP no startup
+transporter.verify((err) => {
+  if (err) {
+    console.error('❌ SMTP verify falhou — não foi possível conectar ao servidor de email:');
+    console.error(err.message);
+    console.error('Verifique SMTP_USER, SMTP_PASSWORD e o host smtpi.ampare.org.br:587');
+    process.exit(1); // Derruba o servidor se o SMTP não conectar
+  } else {
+    console.log('✅ Conexão SMTP verificada com sucesso — emails prontos para envio.');
+  }
+});
 
 /* ──────────────────── diretório temporário local ─────────────────────── */
 const tempDir = path.join(__dirname, 'temp');
@@ -190,7 +212,7 @@ export const CONTRACT_FILES = {
   },
   banco: {
     label: 'Autorização Débito (Banco)',
-    file: path.join(__dirname, 'public', 'Banco.pdf'),
+    file: path.join(__dirname, 'public', 'banco.pdf'),
     positions: {
       CPF_IDENTIFICACAO: { x: 255, y: 488 },
       NOME: { x: 70, y: 428 },
@@ -437,16 +459,19 @@ app.post('/generate-pdfs', async (req, res) => {
       }, 10 * 60 * 1000); // 10 minutos
     }
 
-    // Responde com sucesso (sem enviar PDFs para download)
+    // Se email falhou, retorna erro 500 — NÃO confirma para o usuário
+    if (!emailResult.emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: `PDFs gerados mas falha no envio do email ao administrador. Erro: ${emailResult.error || 'desconhecido'}. Tente novamente.`
+      });
+    }
+
+    // Responde com sucesso apenas se o email foi enviado
     res.json({
       success: true,
-      message: emailResult.emailSent
-        ? `${generated.length} PDFs enviados para o administrador e arquivos temporários excluídos`
-        : `${generated.length} PDFs gerados. ${emailResult.error ? 'Erro no email: ' + emailResult.error : 'Email não configurado'}`
+      message: `${generated.length} PDFs enviados com sucesso para o administrador.`
     });
-
-    // Não precisa mais do setTimeout aqui, pois os arquivos são excluídos imediatamente após o envio
-    // ou mantidos por 10 minutos se o email falhar
   } catch (err) {
     console.error('Erro em /generate-pdfs', err);
     res.status(500).json({ success: false, message: err.message });
@@ -455,15 +480,9 @@ app.post('/generate-pdfs', async (req, res) => {
 
 /* ───────────────────────── helper para e-mail APENAS ADMIN ─────────────────────────────── */
 async function sendEmailToAdmin(anexos, formData) {
-  // Verificar se o transporter está configurado
-  if (!transporter) {
-    console.warn('⚠️  Email não configurado. PDFs salvos apenas no servidor.');
-    return { emailSent: false };
-  }
-
+  // Transporter sempre existe (obrigatório desde o startup)
   try {
-    // Emails fixos dos administradores
-    const ADMIN_EMAILS = 'fabio@ampare.org.br, gabriel@ampare.org.br, marketing@ampare.org.br';
+    const ADMIN_EMAILS = process.env.ADMIN_EMAIL;
 
     console.log(`📧 Tentando enviar email para: ${ADMIN_EMAILS}`);
 
